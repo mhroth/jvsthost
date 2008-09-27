@@ -3,4 +3,30 @@ by
 Martin Roth (mhroth@gmail.com)
 Matthew Yee-King
 
-JVstHost is an open-source Java-based VST host for Linux, Mac, and Windows.  It aims to load and manipulate all audio plugins conforming to the Steinberg VST standard, including those generated with jVSTwRapper and Faust.
+JVstHost is an open-source Java-based VST host for Linux, Mac, and Windows. It aims to load and manipulate all audio plugins conforming to the Steinberg VST standard, including those generated with jVSTwRapper and Faust.
+
+Note that the (only) constructor JVstHost throws an exception of type com.synthbot.audioplugin.vst.JVstLoadException. Discussions regarding the "correctness" of a constructor throwing an exception aside, there are several things which may go wrong while loading a VST. For this reason, an exception is thrown with the details (see JVstLoadException.getMessage()).
+
+A class implementing the com.synthbot.audioplugin.vst.JVstHostListener interface can also register itself with a JvstHost object. It will receive callbacks from the plugin.
+
+JVstHost is licensed under the GNU Lesser General Public License (LGPL). http://www.gnu.org/copyleft/lesser.html
+
+
+INSTALLATION
+===
+
+Mac OS X
+The compiled native library, libjvsthost.jnilib, should be placed in the directory /Library/Java/Extensions.
+
+
+jVSTwRapper
+http://jvstwrapper.sourceforge.net/
+===
+JVstHost does interoperate with jVSTwRapper. Ensure that the jVSTsYstem.jar library (included with jVSTwRapper) is included in the classpath when starting the host. In Mac OS X, this library is most commonly found in the jVSTwRapper vst directory, ./Contents/Resources
+
+
+COMPILATION
+===
+A script file, buildJvh.sh, is included for compiling the JVstHost native library under Mac OS X. The script is made for 10.5, however it should be easily modifiable for any other version of the operating system. The script assumes that the Steinberg VST libraries (not included in this distribution due to Steinberg's licensing terms) are in a subdirectory, ./vst2.x
+
+The script will also copy the resulting library, libjvsthost.jnilib, to /Library/Java/Extensions
