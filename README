@@ -5,11 +5,16 @@ Matthew Yee-King
 
 JVstHost is an open-source Java-based VST host for Linux, Mac, and Windows. It aims to load and manipulate all audio plugins conforming to the Steinberg VST standard, including those generated with jVSTwRapper and Faust.
 
-Note that the (only) constructor JVstHost throws an exception of type com.synthbot.audioplugin.vst.JVstLoadException. Discussions regarding the "correctness" of a constructor throwing an exception aside, there are several things which may go wrong while loading a VST. For this reason, an exception is thrown with the details (see JVstLoadException.getMessage()).
+Note that the (only) constructor of JVstHost throws an exception of type com.synthbot.audioplugin.vst.JVstLoadException. Discussions regarding the "correctness" of a constructor throwing an exception aside, there are several things which may go wrong while loading a VST. For this reason, an exception is thrown with the details (see JVstLoadException.getMessage()).
 
 A class implementing the com.synthbot.audioplugin.vst.JVstHostListener interface can also register itself with a JvstHost object. It will receive callbacks from the plugin.
 
 JVstHost is licensed under the GNU Lesser General Public License (LGPL). http://www.gnu.org/copyleft/lesser.html
+
+
+GETTING STARTED QUICKLY
+===
+All that you really need is to put JVstHost.jar into your java class path, and to put livjvsthost.jnilib into /Library/Java/Extensions (on Mac OS X)
 
 
 INSTALLATION
