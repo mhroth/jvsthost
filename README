@@ -23,6 +23,8 @@ INSTALLATION
 Mac OS X
 The compiled native library, libjvsthost.jnilib, should be placed in the directory /Library/Java/Extensions.
 
+Linux
+The compiled native library, libjvsthost.so, should be placed in your LD_LIBRARY_PATH, e.g. in /usr/local/lib
 
 jVSTwRapper
 http://jvstwrapper.sourceforge.net/
