@@ -13,6 +13,7 @@ gcc -o libjvsthost.so -fPIC -shared -Wl,-soname,libjvsthost.so -lc -lstdc++ \
 -I$JAVA_HOME/include \
 -I$JAVA_HOME/include/linux \
 -I/usr/include \
+./vst2.x/audioeffect.cpp \
 JVstHost.cpp
 
 # copy somewhere useful
