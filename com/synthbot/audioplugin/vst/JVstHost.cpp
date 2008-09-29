@@ -72,8 +72,7 @@ jobject getJobj(JNIEnv *env) {
  * and the environment was updated
  */
 bool setJNIEnv(jobject jobj, JNIEnv *env) {
-  //  for (int i = 0; i < maxSize; i++) {
-  for (int i = 0; i < maxMapSize; i++) {
+  for (int i = 0; i < mapSize; i++) {
     // IsSameObject is used as the map version is a GlobalReference, and the input version is likely to be a local reference
     if (env->IsSameObject(map[i]->jobj, jobj) == JNI_TRUE) {
       map[i]->env = env;
