@@ -1,0 +1,51 @@
+<project name="JVstHost" default="run" basedir=".">
+    <description>
+        build script for JVstHost
+    </description>
+  <!-- set global properties for this build -->
+  <property name="src" location="src"/>
+  <property name="build" location="build"/>
+<!--   <property name="dist"  location="dist"/> -->
+  <!-- command line options -->
+  <property file="build.properties"/>
+ 
+  <target name="init">
+    <!-- Create the time stamp -->
+    <tstamp/>
+    <!-- Create the build directory structure used by compile -->
+    <mkdir dir="${build}"/>
+  </target>
+
+  <target name="compile" depends="init" description="compile the source " >
+    <!-- Compile the java code from ${src} into ${build} -->
+    <javac debug="true" debuglevel="lines,vars,source" deprecation="off"  srcdir="${src}" destdir="${build}">
+      <compilerarg line="-Xlint:unchecked"/>
+     </javac>
+  </target>
+
+  <target name="jar" depends="compile"
+        description="build everything and make a jar" >
+   <jar jarfile="${jar.name}" basedir="${build}">
+   <manifest>
+    <attribute name="Built-By" value="o${jar.built-by}"/>
+    <attribute name="Manifest-Version" value="${jar.version}"/>
+    <attribute name="Main-Class" value="${jar.main-class}"/>
+   </manifest>
+   </jar>  
+
+  </target>
+
+<target name="run" description="run the main-class as specified in the jar manifest">
+   <java fork="true" maxmemory="1200M" jar="${dist}/lib/${jar.name}">
+     <!-- use the property args from above to pull in a command line arg string -->
+     <arg line="${args}"/>
+   </java> 
+   </target>
+
+  <target name="clean"
+        description="clean up" >
+    <!-- Delete the ${build} and ${dist} directory trees -->
+    <delete dir="${build}"/>
+<!--    <delete dir="${dist}"/> -->
+  </target>
+</project>

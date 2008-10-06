@@ -71,3 +71,24 @@ A script file, buildJvh_linux.sh, is included for compiling the
 JVstHost native library under Linux. The script assumes that the
 Steinberg VST libraries (not included in this distribution due to
 Steinberg's licensing terms) are in a subdirectory, ./vst2.x
+
+Mac OS X / Linux
+
+An ant build script is included to build and test the Java parts of JVstHost. to build the jar:
+
+cd jvsthost
+ant jar
+
+To run the test program:
+
+java -jar JVstHost.jar <plugin name>
+
+e.g. (LINUX)
+
+java -jar JVstHost.jar ./mdaDX10.so
+
+e.g. (MAC)
+
+java -jar JVstHost.jar /Users/matthew/Library/Audio/Plug-Ins/VST/mda\ DX10.vst
+
+
