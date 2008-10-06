@@ -30,6 +30,21 @@ JVstHost.jar into your java class path, and to put livjvsthost.jnilib
 into /Library/Java/Extensions (on Mac OS X)
 
 
+TESTING IT OUT
+===
+To run the test program:
+
+java -jar JVstHost.jar <plugin name>
+
+e.g. (LINUX)
+
+java -jar JVstHost.jar ./mdaDX10.so
+
+e.g. (MAC)
+
+java -jar JVstHost.jar /Users/matthew/Library/Audio/Plug-Ins/VST/mda\ DX10.vst
+
+
 INSTALLATION
 ===
 
@@ -78,17 +93,3 @@ An ant build script is included to build and test the Java parts of JVstHost. to
 
 cd jvsthost
 ant jar
-
-To run the test program:
-
-java -jar JVstHost.jar <plugin name>
-
-e.g. (LINUX)
-
-java -jar JVstHost.jar ./mdaDX10.so
-
-e.g. (MAC)
-
-java -jar JVstHost.jar /Users/matthew/Library/Audio/Plug-Ins/VST/mda\ DX10.vst
-
-
