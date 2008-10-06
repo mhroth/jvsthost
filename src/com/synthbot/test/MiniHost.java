@@ -31,47 +31,44 @@ import java.io.File;
 public class MiniHost {
   
   public static void main(String[] args){
-    // how many samples to render 
-    int blockSize = 44100;
+    
+    int blockSize = 44100; // how many samples to render 
     float sampleRate = 44100f;
-    // the plugin will write its output into this array
-    float[][] outputs;
-    JVstHost host;
-    ShortMessage smNoteOff, smNoteOn;
+    float[][] outputs; // the plugin will write its output into this array
+    JVstHost vst = null;
+    ShortMessage smNoteOn;
     int channel = 0;
+    int midiNoteNumber = 60; // midi note number for middle C
+    int velocity = 127;
     AudioPlayer player;
 
     outputs = new float[2][blockSize];
   
     // create a midi note on message
-    smNoteOff = new ShortMessage();
     smNoteOn = new ShortMessage();
     try {
-      smNoteOff.setMessage(ShortMessage.NOTE_OFF, channel, 60, 0);
-      smNoteOn.setMessage(ShortMessage.NOTE_ON, channel, 60, 96);
+      smNoteOn.setMessage(ShortMessage.NOTE_ON, channel, midiNoteNumber, velocity);
     } catch (InvalidMidiDataException imde) {
       imde.printStackTrace(System.err);
-      System.exit(0);
+      System.exit(1);
     }
     
     try {
       // read the name of the plugin library from the command line
-      host = new JVstHost(new File(args[0]), sampleRate, blockSize);
-      host.processReplacing(outputs); // some synths seem to require an initial procRep
-      // pass in the midi messages for prcessing
-      host.setMidiEvents(new ShortMessage[] {smNoteOff, smNoteOn});
-      // render (blockSize) frames of output
-      host.processReplacing(outputs); 
-      
-      // play the first channel
-      player = new AudioPlayer();
-      player.playAudio(outputs[0]);
-    } catch (JVstLoadException e) {
-      e.printStackTrace(System.err);
+      vst = new JVstHost(new File(args[0]), sampleRate, blockSize);
+    } catch (JVstLoadException jvle) {
+      jvle.printStackTrace(System.err);
+      System.exit(1);
     }
-
-  
     
+    outputs = new float[vst.numOutputs()][blockSize];
+    
+    vst.processReplacing(null, outputs, 64); // some synths seem to require an initial procRep
+    vst.setMidiEvents(new ShortMessage[] {smNoteOn}); // pass in the midi event
+    vst.processReplacing(outputs); //
+    
+    // play the left channel
+    player = new AudioPlayer();
+    player.playAudio(outputs[0]);
   }
-
 }
