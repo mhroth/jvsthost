@@ -453,6 +453,24 @@ public class JVstHost {
     }
     suspend();
   }
+  
+  /**
+   * Resets the plugin by unloading the native component and loading it again
+   * from scratch.
+   * @throws JVstLoadException
+   */
+  public void reset() throws JVstLoadException {
+    turnOff();
+    unloadPlugin(vstInputsPtr, vstOutputsPtr, vstPluginPtr, vstLibPtr);
+    try {
+      loadPlugin(pluginFile.toString());
+    } catch (JVstLoadException jvle) {
+      throw jvle;
+    }
+    setBlockSize(blockSize);
+    setSampleRate(sampleRate);
+    turnOn();
+  }
     
   // === Callbacks from JNI library === //
   
