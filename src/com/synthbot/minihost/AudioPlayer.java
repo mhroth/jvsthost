@@ -1,4 +1,4 @@
-package com.synthbot.test;
+package com.synthbot.minihost;
 
 //import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.*;
@@ -51,8 +51,8 @@ public class AudioPlayer {
       InputStream byteArrayInputStream = new ByteArrayInputStream(audioData);
       AudioFormat audioFormat = new AudioFormat(44100, 16, 1, true, false);
 
-      audioInputStream = new AudioInputStream(byteArrayInputStream, audioFormat, audioData.length
-          / audioFormat.getFrameSize());
+      audioInputStream = new AudioInputStream(byteArrayInputStream, audioFormat, 
+					      audioData.length / audioFormat.getFrameSize());
       DataLine.Info dataLineInfo = new DataLine.Info(SourceDataLine.class, audioFormat);
       // System.out.println("data line info?"+dataLineInfo.toString());
       sourceDataLine = (SourceDataLine) AudioSystem.getLine(dataLineInfo);

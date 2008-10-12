@@ -19,7 +19,7 @@
  *
  */
 
-package com.synthbot.test;
+package com.synthbot.minihost;
 
 import com.synthbot.audioplugin.vst.JVstHost;
 import com.synthbot.audioplugin.vst.JVstLoadException;
@@ -28,7 +28,7 @@ import javax.sound.midi.ShortMessage;
 import javax.sound.midi.InvalidMidiDataException;
 import java.io.File;
 
-public class MiniHost {
+public class ConsoleMiniHost {
   
   public static void main(String[] args){
     
