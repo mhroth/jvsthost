@@ -36,7 +36,7 @@
   </target>
 
 <target name="run" description="run the main-class as specified in the jar manifest">
-   <java fork="true" maxmemory="1200M" jar="${dist}/lib/${jar.name}">
+   <java fork="true" maxmemory="1200M" jar="${jar.name}">
      <!-- use the property args from above to pull in a command line arg string -->
      <arg line="${args}"/>
    </java> 

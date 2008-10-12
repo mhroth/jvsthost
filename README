@@ -4,7 +4,7 @@ Martin Roth (mhroth@gmail.com)
 Matthew Yee-King
 
 JVstHost is an open-source Java-based VST host for Linux, Mac, and
-Windows. It aims to load and manipulate all audio plugins conforming
+Windows (soon). It aims to load and manipulate all audio plugins conforming
 to the Steinberg VST standard, including those generated with
 jVSTwRapper and Faust.
 
@@ -42,8 +42,7 @@ java -jar JVstHost.jar ./mdaDX10.so
 
 e.g. (MAC)
 
-java -jar JVstHost.jar /Users/matthew/Library/Audio/Plug-Ins/VST/mda\ DX10.vst
-
+java -jar JVstHost.jar ~/Library/Audio/Plug-Ins/VST/mda\ DX10.vst
 
 INSTALLATION
 ===
