@@ -1099,7 +1099,7 @@ JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_setProgram
   (JNIEnv *env, jobject jobj, jint index, jlong ae) {
 
   AEffect *effect = (AEffect *)ae;
-  effect->dispatcher (effect, effSetProgram, index, 0, 0, 0);
+  effect->dispatcher (effect, effSetProgram, 0, index, 0, 0);
 }
 
 JNIEXPORT jstring JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_getParameterDisplay
