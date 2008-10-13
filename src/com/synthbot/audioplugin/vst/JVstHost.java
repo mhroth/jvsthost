@@ -85,7 +85,7 @@ public class JVstHost {
   
   public JVstHost(File file, float sampleRate, int blockSize) throws JVstLoadException {
     if (!file.exists()) {
-      throw new JVstLoadException("The plugin file does not exist.");
+      throw new JVstLoadException("The plugin file does not exist: " + file.toString());
     }
     pluginFile = file;
     try {
