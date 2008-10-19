@@ -84,12 +84,7 @@ Windows
 Compiling the native library is unfortunately somewhat more complicated under Windows.
 We use Cygwin (http://www.cygwin.com/) and MinGW (http://www.mingw.org/), and not
 Visual Studio (it was hard enough for us to get a hold of a Windows machine to develop on,
-let alone Visual Studio). Under these circumstances, it is necessary to make two changes to
-the Java and VST source files.
-  As detailed here (http://www.graphics-muse.org/wp/?page_id=147), replace "typedef __int64 jlong;"
-in jni_md.h in your java/include/win32 directory, with "typedef long long jlong;". Then, replace
-"typedef __int64 VstInt64;" in aeffect.h (one of the VST libraries), with "typedef long long VstInt64;".
-Hopefully we will find a way around the latter case.
+let alone Visual Studio). Use the buildJvh_win.sh script.
  
 
 Mac OS X / Linux
