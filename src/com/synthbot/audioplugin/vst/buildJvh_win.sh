@@ -1,5 +1,3 @@
-# http://www.graphics-muse.org/wp/?page_id=147
-
 gcc -mno-cygwin -o jvsthost.dll -shared -O3 -w  -Wl,--add-stdcall-alias \
 -I. \
 -I/cygdrive/c/Java/jdk1.6.0_10/include \
