@@ -38,20 +38,20 @@ public class AudioThread implements Runnable {
   private byte[] bOutput;
   private int blockSize;
   private int numOutputs;
+  private AudioFormat audioFormat;
   private SourceDataLine sourceDataLine;
 
   private Vector<ShortMessage> pendingMidi;
 
-  private static final float ShortMaxValueAsFloat = (float) (Short.MAX_VALUE);
+  private static final float ShortMaxValueAsFloat = (float) Short.MAX_VALUE;
 
   public AudioThread(JVstHost vst) {
-    super();
     addJVstHost(vst);
     numOutputs = vst.numOutputs();
     blockSize = vst.getBlockSize();
     pendingMidi = new Vector<ShortMessage>();
 
-    AudioFormat audioFormat = new AudioFormat((int) vst.getSampleRate(), 16, vst.numOutputs(), true, false);
+    audioFormat = new AudioFormat((int) vst.getSampleRate(), 16, vst.numOutputs(), true, false);
     DataLine.Info dataLineInfo = new DataLine.Info(SourceDataLine.class, audioFormat);
     System.out.println("AudioThread::Sound card data line info:" + dataLineInfo.toString());
 
@@ -112,6 +112,38 @@ public class AudioThread implements Runnable {
     }
     sourceDataLine.drain();
     sourceDataLine.close();
+  }
+  
+  /**
+   * Play the given array once, independent of the real-time audio thread.
+   * TODO: implement!
+   * @param fInputs
+   */
+  @Deprecated
+  public void playOnce(float[][] fInputs) {
+	DataLine.Info dataLineInfo = new DataLine.Info(SourceDataLine.class, audioFormat);
+	final int localBlockSize = 1024; 
+    sourceDataLine = null;
+    try {
+      sourceDataLine = (SourceDataLine) AudioSystem.getLine(dataLineInfo);
+      sourceDataLine.open(audioFormat, localBlockSize);
+      sourceDataLine.start();
+    } catch (LineUnavailableException lue) {
+      lue.printStackTrace(System.err);
+      System.exit(1);
+    }
+    byte[] bInputs = new byte[fInputs.length * fInputs[0].length * 2];
+    floatsToBytes(fInputs, bInputs);
+    /*
+    Thread thread = new Thread() {
+      public void run() {
+    	int bytesToWrite
+    	while
+        sourceDataLine.write(bInputs, 0, bOutput.length);
+      }
+    };
+    thread.start();
+    */
   }
 
 }

@@ -73,8 +73,8 @@ public class JVstHost {
   private long vstTimeInfoPtr = 0; // used to store an outstanding VstTimeInfo pointer
   
   protected final File pluginFile;
-  protected int blockSize;
-  protected float sampleRate;
+  protected volatile int blockSize;
+  protected volatile float sampleRate;
   protected int vstNumInputs; // cached locally for processReplacing
   protected int vstNumOutputs;  // cached locally for processReplacing
   
@@ -225,6 +225,7 @@ public class JVstHost {
   
   private native void setSampleRate(float sampleRate, long pluginPtr);
   public void setSampleRate(float sampleRate) {
+    this.sampleRate = sampleRate;
     setSampleRate(sampleRate, vstPluginPtr);
   }
   
@@ -234,6 +235,7 @@ public class JVstHost {
   
   private native void setBlockSize(int blockSize, long pluginPtr);
   public void setBlockSize(int blockSize) {
+    this.blockSize = blockSize;
     setBlockSize(blockSize, vstPluginPtr);
   }
   

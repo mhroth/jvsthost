@@ -567,17 +567,28 @@ JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_loadPlugin
 
   // minihost.cpp
   #if _WIN32
-    /*
 	const char *path = (char *)(env->GetStringUTFChars(pluginPath, NULL));
-    if(path == NULL) return 0; // the jstring conversion has failed
-    void *libptr = LoadLibrary (path);
-    if(libptr == NULL) return 0; // the library could not be loaded
-    env->ReleaseStringUTFChars(pluginPath, path);
-    mainProc = (PluginEntryProc)GetProcAddress ((HMODULE)module, "VSTPluginMain");
-    if (!mainProc) {
-      mainProc = (PluginEntryProc)GetProcAddress ((HMODULE)module, "main");
+    if (path == NULL) {
+      env->ThrowNew(classJVstLoadException, "jstring conversion failed.");
     }
-	*/
+    libptr = LoadLibrary (path);
+    if (libptr == NULL) {
+      env->ThrowNew(classJVstLoadException, "the library could not be loaded.");
+    }
+    env->ReleaseStringUTFChars(pluginPath, path);
+    AEffect* (*mainProc) (audioMasterCallback);
+    mainProc = (AEffect* (*)(audioMasterCallback)) GetProcAddress((HMODULE) libptr, "VSTPluginMain");
+    if (!mainProc) {
+      mainProc = (AEffect* (*)(audioMasterCallback)) GetProcAddress((HMODULE) libptr, "main");
+      if (!mainProc) {
+        env->ThrowNew(classJVstLoadException, "The plugin entry function could not be found.");
+      }
+    }
+    ae = (AEffect *) mainProc(HostCallback);
+    if(ae == NULL || ae->magic != kEffectMagic) {
+      FreeLibrary((HMODULE) libptr); // unload the library
+      env->ThrowNew(classJVstLoadException, "The plugin could not be instantiated.");
+    }
 
   #elif TARGET_API_MAC_CARBON
     // http://developer.apple.com/documentation/CoreFoundation/Reference/CFBundleRef/Reference/reference.html
@@ -629,7 +640,7 @@ JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_loadPlugin
     }
     env->ReleaseStringUTFChars(pluginPath, path); // Informs the VM that the native code no longer needs access to chars
     AEffect* (*vstPluginFactory) (audioMasterCallback); // define the vstPluginFactory
-    vstPluginFactory = (AEffect* (*)(audioMasterCallback))dlsym(libptr, "VSTPluginMain"); // get a pointer to the entry function
+    vstPluginFactory = (AEffect* (*)(audioMasterCallback)) dlsym(libptr, "VSTPluginMain"); // get a pointer to the entry function
     if(vstPluginFactory == NULL) {
       vstPluginFactory = (AEffect* (*)(audioMasterCallback))dlsym(libptr, "main"); // try another entry function
       if(vstPluginFactory == NULL) { // the entry function could not be found
@@ -682,7 +693,7 @@ JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_unloadPlugin
   
   // close the reference to the library
   #if _WIN32
-  
+    FreeLibrary((HMODULE) libPtr);
   #elif TARGET_API_MAC_CARBON
     CFRelease ((CFBundleRef)libPtr);  // plugin unloads automatically when all bundle references to it are gone
   #else // unix
@@ -730,11 +741,13 @@ JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_openEditor
   if((effect->flags & effFlagsHasEditor) == 0) return;
 
   #if _WIN32
+    /*
     MyDLGTEMPLATE t;	
     t.style = WS_POPUPWINDOW | WS_DLGFRAME | DS_MODALFRAME | DS_CENTER;
     t.cx = 100;
     t.cy = 100;
     DialogBoxIndirectParam (GetModuleHandle (0), &t, 0, (DLGPROC)EditorProc, (LPARAM)effect);
+    */
     
   #elif TARGET_API_MAC_CARBON
     WindowRef window;

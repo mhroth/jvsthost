@@ -8,7 +8,7 @@ fi
 
 # compile
 echo compiling the library
-gcc -o libjvsthost.so -fPIC -shared -Wl,-soname,libjvsthost.so -lc -lstdc++ \
+gcc -o libjvsthost.so -fPIC -shared -Wl,-soname,libjvsthost.so -03 -lc -lstdc++ \
 -I.//vst2.x \
 -I$JAVA_HOME/include \
 -I$JAVA_HOME/include/linux \
