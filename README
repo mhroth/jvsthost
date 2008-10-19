@@ -4,7 +4,7 @@ Martin Roth (mhroth@gmail.com)
 Matthew Yee-King
 
 JVstHost is an open-source Java-based VST host for Linux, Mac, and
-Windows (soon). It aims to load and manipulate all audio plugins conforming
+Windows. It aims to load and manipulate all audio plugins conforming
 to the Steinberg VST standard, including those generated with
 jVSTwRapper and Faust.
 
@@ -23,11 +23,17 @@ JVstHost is licensed under the GNU Lesser General Public License
 (LGPL). http://www.gnu.org/copyleft/lesser.html
 
 
-GETTING STARTED QUICKLY 
+GETTING STARTED 
 === 
-All that you really need is to put
-JVstHost.jar into your java class path, and to put livjvsthost.jnilib
-into /Library/Java/Extensions (on Mac OS X)
+All that you really need is to put JVstHost.jar into your java class path, and to put:
+* libjvsthost.jnilib into /Library/Java/Extensions (Mac OS X)
+* libjvsthost.so into /usr/local/lib (Linux)
+* jvsthost.dll into C:\WINDOWS\system32 (Windows)
+The directories may be system dependent. They must simply by listed in the Java classpath
+so that Java will know where to look for them.
+
+NOTE: There is a known (serious) bug in the Windows version at the moment. No synth seems to produce
+sound, though it can be otherwise manipulated. We're working on this...
 
 
 TESTING IT OUT
@@ -44,16 +50,6 @@ e.g. (MAC)
 
 java -jar JVstHost.jar ~/Library/Audio/Plug-Ins/VST/mda\ DX10.vst
 
-INSTALLATION
-===
-
-Mac OS X 
-The compiled native library, libjvsthost.jnilib, should be
-placed in the directory /Library/Java/Extensions.
-
-Linux 
-The compiled native library, libjvsthost.so, should be placed in
-your LD_LIBRARY_PATH, e.g. in /usr/local/lib
 
 jVSTwRapper 
 ===
@@ -67,24 +63,34 @@ commonly found in the jVSTwRapper vst directory, ./Contents/Resources
 
 COMPILATION
 ===
-
 Mac OS X 
 A script file, buildJvh.sh, is included for compiling the
 JVstHost native library under Mac OS X. The script is made for 10.5,
 however it should be easily modifiable for any other version of the
 operating system. The script assumes that the Steinberg VST libraries
 (not included in this distribution due to Steinberg's licensing terms)
-are in a subdirectory, ./vst2.x
+are in the package subdirectory, ./vst2.x
 
 The script will also copy the resulting library, libjvsthost.jnilib,
-to /Library/Java/Extensions
+to /Library/Java/Extensions.
 
 Linux 
-
 A script file, buildJvh_linux.sh, is included for compiling the
 JVstHost native library under Linux. The script assumes that the
 Steinberg VST libraries (not included in this distribution due to
-Steinberg's licensing terms) are in a subdirectory, ./vst2.x
+Steinberg's licensing terms) are in the package subdirectory, ./vst2.x
+
+Windows
+Compiling the native library is unfortunately somewhat more complicated under Windows.
+We use Cygwin (http://www.cygwin.com/) and MinGW (http://www.mingw.org/), and not
+Visual Studio (it was hard enough for us to get a hold of a Windows machine to develop on,
+let alone Visual Studio). Under these circumstances, it is necessary to make two changes to
+the Java and VST source files.
+  As detailed here (http://www.graphics-muse.org/wp/?page_id=147), replace "typedef __int64 jlong;"
+in jni_md.h in your java/include/win32 directory, with "typedef long long jlong;". Then, replace
+"typedef __int64 VstInt64;" in aeffect.h (one of the VST libraries), with "typedef long long VstInt64;".
+Hopefully we will find a way around the latter case.
+ 
 
 Mac OS X / Linux
 
