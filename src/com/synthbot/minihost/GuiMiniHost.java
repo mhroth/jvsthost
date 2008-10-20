@@ -27,54 +27,104 @@ import java.io.File;
 import javax.sound.midi.ShortMessage;
 import javax.sound.midi.InvalidMidiDataException;
 
-public class GuiMiniHost {
+public class GuiMiniHost implements PluginStringGuiListener  {
 
   private static final float sampleRate = 44100f;
   private static final int blockSize = 4096;
   private JVstHost vst;
   private AudioThread audioThread;
 
+  private GuiMiniHostListener stringGui;
+  
   private int channel = 0;
   private int velocity = 127;
 
   public GuiMiniHost(File vstFile) {
     vst = null;
+
+    stringGui = new PluginStringGui(this);
     try {
+      System.out.println("GuiMiniHost... about ot load ! "+vstFile.toString());
       vst = new JVstHost(vstFile, sampleRate, blockSize);
     } catch (JVstLoadException jvle) {
       jvle.printStackTrace(System.err);
       System.exit(1);
     }
+    stringGui.generateGui();
 
     // start the audio thread
     audioThread = new AudioThread(vst);
     Thread thread = new Thread(audioThread);
     thread.start();
+  }
 
-    // create a midi note on message
-    ShortMessage midiMessage = new ShortMessage();
-    
-    // play a random note every 1000 ms
+
+  // implement the PluginStringGUIListener interface 
+  
+  public String setParameter(int index, float value){
+    vst.setParameter(index, value);
+    return vst.getParameterDisplay(index);
+  }
+
+  public float getParameter(int index){
+    return vst.getParameter(index);
+  }
+
+  
+  public void setProgram(int index){
+    vst.setProgram(index);
+  }
+  
+  public String getProgramName(){
+    return vst.getProgramName();
+  }
+  
+  public synchronized void playNote(int note, int velocity){
     try {
-      while (true) {
-        int note = (int) (Math.random() * 24) + 48;
-
-        Thread.sleep(500);
-        midiMessage.setMessage(ShortMessage.NOTE_ON, channel, note, velocity);
-        audioThread.addMidiMessages(midiMessage);
-
-        Thread.sleep(500);
-        midiMessage.setMessage(ShortMessage.NOTE_OFF, channel, note, 0);
-        audioThread.addMidiMessages(midiMessage);
-
-      }
+      final int noteNo = note;
+      ShortMessage midiMessage = new ShortMessage();
+      midiMessage.setMessage(ShortMessage.NOTE_ON, 0, note, velocity);
+      audioThread.addMidiMessages(midiMessage);
+      // schedule a note off
+      new Thread() {
+	public void run() {
+	  try {
+	    ShortMessage midiMessageOff = new ShortMessage();
+	    // wait 250 ms then send a note off
+	    Thread.sleep(250);
+	    midiMessageOff.setMessage(ShortMessage.NOTE_OFF, 0, noteNo, 0);
+	    audioThread.addMidiMessages(midiMessageOff);
+	  } catch (InvalidMidiDataException imde) {
+	    imde.printStackTrace(System.err);
+	    //System.exit(1);
+	  } catch (InterruptedException e) {
+	    e.printStackTrace(System.err);
+	    //System.exit(1);
+	  }
+	}
+      }.start();
+    
     } catch (InvalidMidiDataException imde) {
       imde.printStackTrace(System.err);
-      System.exit(1);
-    } catch (InterruptedException e) {
-      e.printStackTrace(System.err);
-      System.exit(1);
+      //System.exit(1);
     }
+  }
+
+  public int getNumParameters(){
+    return vst.numParameters();
+  }
+
+  public String getParameterDisplay(int index){
+    return vst.getParameterDisplay(index);
+  }
+  
+  public String getParameterName(int index){
+    return vst.getParameterName(index);
+  }
+  
+  public String getParameterLabel(int index){
+    return vst.getParameterLabel(index);
+  
   }
 
   public static void main(String[] args) {
