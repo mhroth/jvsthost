@@ -27,6 +27,9 @@ import java.io.File;
 import javax.sound.midi.ShortMessage;
 import javax.sound.midi.InvalidMidiDataException;
 
+/**
+ * Plays a random note every 1 second.
+ */
 public class RandomMiniHost   {
 
   private static final float sampleRate = 44100f;

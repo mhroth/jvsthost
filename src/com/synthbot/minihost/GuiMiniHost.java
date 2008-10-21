@@ -37,14 +37,12 @@ public class GuiMiniHost implements PluginStringGuiListener  {
   private GuiMiniHostListener stringGui;
   
   private int channel = 0;
-  private int velocity = 127;
 
   public GuiMiniHost(File vstFile) {
     vst = null;
 
     stringGui = new PluginStringGui(this);
     try {
-      System.out.println("GuiMiniHost... about ot load ! "+vstFile.toString());
       vst = new JVstHost(vstFile, sampleRate, blockSize);
     } catch (JVstLoadException jvle) {
       jvle.printStackTrace(System.err);
@@ -82,7 +80,7 @@ public class GuiMiniHost implements PluginStringGuiListener  {
   public synchronized void playNote(int note, int velocity){
     try {
       ShortMessage midiMessage = new ShortMessage();
-      midiMessage.setMessage(ShortMessage.NOTE_ON, 0, note, velocity);
+      midiMessage.setMessage(ShortMessage.NOTE_ON, channel, note, velocity);
       audioThread.addMidiMessages(midiMessage);
     } catch (InvalidMidiDataException imde) {
       imde.printStackTrace(System.err);
