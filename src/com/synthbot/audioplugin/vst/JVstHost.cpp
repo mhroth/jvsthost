@@ -261,6 +261,10 @@ void opcode2string(VstInt32 opcode, VstIntPtr value, JNIEnv *env) {
       message = env->NewStringUTF("audioMasterWantMidi: DEPRECATED in VST 2.4");
       break;
     }
+    case 14: { // audioMasterNeedIdle
+      message = env->NewStringUTF("audioMasterNeedIdle: DEPRECATED in VST 2.4");
+      break;
+    }
     default: {
       char *str = (char *) malloc(sizeof(char) * 100);
       sprintf(str, "Opcode not recognized: %i", opcode);
