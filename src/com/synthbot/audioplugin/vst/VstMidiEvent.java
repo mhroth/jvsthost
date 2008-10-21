@@ -18,19 +18,17 @@ public class VstMidiEvent {
     }
   }
   
-  public final int type = 1; // kVstMidiType (aeffectx.h)
-  public final int deltaFrames;
-  public final int flags;
-  public final int noteLength;
-  public final int noteOffset;
-  public final ShortMessage message;
-  public final char detune;
-  public final char noteOffVelocity;
-  public final char reserved1;
-  public final char reserved2;
+  private final int type = 1; // kVstMidiType (aeffectx.h)
+  private int deltaFrames;
+  private int flags;
+  private int noteLength;
+  private int noteOffset;
+  private final ShortMessage message;
+  private char detune;
+  private char noteOffVelocity;
   
   /**
-   * A basic default constructor.
+   * A basic default constructor with the default settings
    */
   public VstMidiEvent(ShortMessage message) {
     deltaFrames = 0;
@@ -40,31 +38,87 @@ public class VstMidiEvent {
     this.message = message;
     detune = 0;
     noteOffVelocity = 0;
-    reserved1 = 0;
-    reserved2 = 0;
+  }
+
+  /**
+   * sample frames related to the current block start sample position
+   */
+  public int getDeltaFrames() {
+    return deltaFrames;
+  }
+
+  /**
+   * sample frames related to the current block start sample position
+   */
+  public void setDeltaFrames(int deltaFrames) {
+    this.deltaFrames = deltaFrames;
+  }
+
+  public int getFlags() {
+    return flags;
+  }
+
+  public void setFlags(int flags) {
+    this.flags = flags;
+  }
+
+  /**
+   * (in sample frames) of entire note, if available, else 0
+   */
+  public int getNoteLength() {
+    return noteLength;
+  }
+
+  /**
+   * (in sample frames) of entire note, if available, else 0
+   */
+  public void setNoteLength(int noteLength) {
+    this.noteLength = noteLength;
+  }
+
+  /**
+   * offset (in sample frames) into note from note start if available, else 0
+   */
+  public int getNoteOffset() {
+    return noteOffset;
+  }
+
+  /**
+   * offset (in sample frames) into note from note start if available, else 0
+   */
+  public void setNoteOffset(int noteOffset) {
+    this.noteOffset = noteOffset;
+  }
+
+  /**
+   * -64 to +63 cents; for scales other than 'well-tempered' ('microtuning')
+   */
+  public char getDetune() {
+    return detune;
+  }
+
+  /**
+   * -64 to +63 cents; for scales other than 'well-tempered' ('microtuning')
+   */
+  public void setDetune(char detune) {
+    this.detune = detune;
+  }
+
+  public char getNoteOffVelocity() {
+    return noteOffVelocity;
+  }
+
+  public void setNoteOffVelocity(char noteOffVelocity) {
+    this.noteOffVelocity = noteOffVelocity;
+  }
+
+  public int getType() {
+    return type;
+  }
+
+  public ShortMessage getMessage() {
+    return message;
   }
   
-  /**
-   * The full constructor.
-   */
-  public VstMidiEvent(
-      int deltaFrames, 
-      int flags, 
-      int noteLength, 
-      int noteOffset, 
-      ShortMessage message, 
-      char detune, 
-      char noteOffVelocity, 
-      char reserved1, 
-      char reserved2) {
-    this.deltaFrames = deltaFrames;
-    this.flags = flags;
-    this.noteLength = noteLength;
-    this.noteOffset = noteOffset;
-    this.message = message;
-    this.detune = detune;
-    this.noteOffVelocity = noteOffVelocity;
-    this.reserved1 = reserved1;
-    this.reserved2 = reserved2;
-  }
+  
 }

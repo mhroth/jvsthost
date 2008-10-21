@@ -30,7 +30,7 @@ import javax.sound.midi.InvalidMidiDataException;
 public class GuiMiniHost {
 
   private static final float sampleRate = 44100f;
-  private static final int blockSize = 4096;
+  private static final int blockSize = 2048;
   private JVstHost vst;
   private AudioThread audioThread;
 
@@ -54,19 +54,34 @@ public class GuiMiniHost {
     // create a midi note on message
     ShortMessage midiMessage = new ShortMessage();
     
+    ShortMessage smOmniModeOn = new ShortMessage();
+    ShortMessage smSoundOff = new ShortMessage();
+    ShortMessage smResetControllers = new ShortMessage();
+    ShortMessage smAllNotesOff = new ShortMessage();
+    
     // play a random note every 1000 ms
     try {
+      smOmniModeOn.setMessage(ShortMessage.CONTROL_CHANGE, 0x7D, 0); // omni mode on
+      smSoundOff.setMessage(ShortMessage.CONTROL_CHANGE, 0x78, 0); // All sound off (120)
+      smResetControllers.setMessage(ShortMessage.CONTROL_CHANGE, 0x79, 0); // reset all controllers (121)
+      smAllNotesOff.setMessage(ShortMessage.CONTROL_CHANGE, 0x7B, 0); // all notes off (123)
+      
       while (true) {
         int note = (int) (Math.random() * 24) + 48;
 
-        Thread.sleep(500);
+        Thread.sleep(5000);
         midiMessage.setMessage(ShortMessage.NOTE_ON, channel, note, velocity);
         audioThread.addMidiMessages(midiMessage);
 
         Thread.sleep(500);
-        midiMessage.setMessage(ShortMessage.NOTE_OFF, channel, note, 0);
+        //midiMessage.setMessage(ShortMessage.NOTE_OFF, channel, note, 0);
+        
+        //audioThread.addMidiMessages(midiMessage);
+        //audioThread.addMidiMessages(smOmniModeOn);
+        audioThread.addMidiMessages(smAllNotesOff);
         audioThread.addMidiMessages(midiMessage);
-
+        //audioThread.addMidiMessages(smSoundOff);
+        //audioThread.addMidiMessages(smResetControllers);
       }
     } catch (InvalidMidiDataException imde) {
       imde.printStackTrace(System.err);
