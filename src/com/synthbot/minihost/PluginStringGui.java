@@ -21,6 +21,7 @@
 
 package com.synthbot.minihost;
 
+
 import java.awt.Dimension;
 import java.awt.Container;
 import javax.swing.BoxLayout;
@@ -42,7 +43,7 @@ import javax.swing.Box;
 import javax.swing.ImageIcon;
 import javax.swing.JComboBox;
 
-public class PluginStringGui extends JFrame implements GuiMiniHostListener {
+public class PluginStringGui extends JFrame implements GuiMiniHostListener  {
 
   private final PluginStringGuiListener host;
 
@@ -51,19 +52,19 @@ public class PluginStringGui extends JFrame implements GuiMiniHostListener {
   private JSlider[] sliders;
   private JButton setEvolutionMaskButton;
 
-  // private static final String EVOLUTION_MASK = "Set Evoution Mask";
+  //  private static final String EVOLUTION_MASK = "Set Evoution Mask";
   private static final String SYNTHBOT_STRING_GUI = "SynthBot String GUI";
-  // private static final String NO_EVOLVE = "Don't Evolve";
+  //private static final String NO_EVOLVE = "Don't Evolve";
   private static final String PARAMETER_VALUE = "Parameter Value";
   private static final String PARAMETER_DISPLAY = "Parameter Display";
   private static final String PARAMETER_NAME = "Parameter Name";
 
-  public PluginStringGui(PluginStringGuiListener pluginHost) {
+  public PluginStringGui(PluginStringGuiListener pluginHost){
     super(SYNTHBOT_STRING_GUI);
     this.host = pluginHost;
   }
 
-  public void generateGui() {
+  public void generateGui(){
     // configure the gui based on this host
     int colWidth = 240;
     int colHeight = 25;
@@ -83,7 +84,10 @@ public class PluginStringGui extends JFrame implements GuiMiniHostListener {
       displays[i] = host.getParameterDisplay(i);
       names[i] = host.getParameterName(i);
       labels[i] = host.getParameterLabel(i);
+      System.out.println("GuiMiniHost: label is "+labels[i]);
     }
+    
+
 
     // this is the top level container with the 3 cols plus the keyboard
     Container globalContainer = new Container();
@@ -113,8 +117,12 @@ public class PluginStringGui extends JFrame implements GuiMiniHostListener {
     sliders = new JSlider[numParameters];
 
     for (int i = 0; i < numParameters; i++) {
+      //System.out.println("PluginStringGUI... adding para  "+names[i]);
       JLabel nameLabel = new JLabel(i + ": " + names[i] + "  (" + labels[i] + ")  ", JLabel.RIGHT);
-      final JSlider slider = new JSlider(0, 127, (int) (values[i] * 127f)); // set initial value
+
+      final JSlider slider = new JSlider(0, 127, (int) (values[i] * 127f)); // set
+                                                                            // initial
+                                                                            // value?
       slider.setValue((int) (values[i] * 127f));
       slider.setFocusable(false);
       sliders[i] = slider;
@@ -132,11 +140,12 @@ public class PluginStringGui extends JFrame implements GuiMiniHostListener {
 
       final int index = i;
       slider.addChangeListener(new ChangeListener() {
-        public void stateChanged(ChangeEvent event) {
-          String displayString = host.setParameter(index, ((float) slider.getValue()) / 127f);
-          valueLabel.setText(displayString);
-        }
-      });
+	  public void stateChanged(ChangeEvent event) {
+	    String displayString = host.setParameter(index,
+						     ((float) slider.getValue()) / 127f);
+	    valueLabel.setText(displayString);
+	  }
+	});
       // tell it not to fuck about with the sizes
       widgets.setMinimumSize(new Dimension(colWidth, colHeight));
       widgets.setPreferredSize(new Dimension(colWidth, colHeight));
@@ -187,11 +196,11 @@ public class PluginStringGui extends JFrame implements GuiMiniHostListener {
       }
 
       key.addActionListener(new ActionListener() {
-        public void actionPerformed(ActionEvent event) {
-          // host.playNote(48 + note, 96, synthbot.onGetCurrentParameters());
-          host.playNote(48 + note, 96);
-        }
-      });
+	  public void actionPerformed(ActionEvent event) {
+	    //host.playNote(48 + note, 96, synthbot.onGetCurrentParameters());
+	    host.playNote(48 + note, 96);
+	  }
+	});
       keyboard.add(key);
     }
 
@@ -211,48 +220,53 @@ public class PluginStringGui extends JFrame implements GuiMiniHostListener {
     JComboBox progList = new JComboBox(progNames);
     progList.setSelectedIndex(0);
     progList.addActionListener(new ActionListener() {
-      public void actionPerformed(ActionEvent e) {
-        JComboBox cb = (JComboBox) e.getSource();
-        int index = cb.getSelectedIndex();
-        String progName = (String) cb.getSelectedItem();
-        float[] program;
-        host.setProgram(index);
-        // now update the sliders...
-        // program = host.getCurrentParameters();
+	public void actionPerformed(ActionEvent e) {
+	  JComboBox cb = (JComboBox) e.getSource();
+	  int index = cb.getSelectedIndex();
+	  String progName = (String) cb.getSelectedItem();
+	  float[] program;
+	  // System.out.println("PluginStringGUI: you selected program
+	  // "+progName+" index "+index);
+	  host.setProgram(index);
+	  // now update the sliders...
+	  //program = host.getCurrentParameters();
 
-        for (int i = 0; i < numParameters; i++) {
-          sliders[i].setValue((int) (host.getParameter(i) * 127f));
-        }
-      }
-    });
+	  for (int i = 0; i < numParameters; i++) {
+	    // System.out.println("PluginStringGUI: updating param "+i+" to
+	    // "+program[i]);
+	    sliders[i].setValue((int) (host.getParameter(i) * 127f));
+	  }
+	}
+      });
 
     globalContainer.add(scrollPane);
     globalContainer.add(keyboard);
     globalContainer.add(progList);
     this.add(globalContainer);
 
+
     // container.add(playSound);
 
     this.addKeyListener(new KeyListener() {
-      public void keyPressed(KeyEvent event) {
-      }
+	public void keyPressed(KeyEvent event) {
+	}
 
-      public void keyReleased(KeyEvent event) {
-      }
+	public void keyReleased(KeyEvent event) {
+	}
 
-      public void keyTyped(KeyEvent event) {
-        switch (event.getKeyChar()) {
-        case ' ':
-          // TODO play a sound here
-          break;
-        case 'w':
-          // TODO close the frame
-          break;
-        default:
-          break;
-        }
-      }
-    });
+	public void keyTyped(KeyEvent event) {
+	  switch (event.getKeyChar()) {
+          case ' ':
+            // TODO play a sound here
+            break;
+          case 'w':
+            // TODO close the frame
+            break;
+          default:
+            break;
+	  }
+	}
+      });
 
     this.setFocusable(true);
     this.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);

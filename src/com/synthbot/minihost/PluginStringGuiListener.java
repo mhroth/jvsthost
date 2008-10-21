@@ -30,13 +30,18 @@ package com.synthbot.minihost;
  * @version 1.0
  */
 public interface PluginStringGuiListener{
+
   public String setParameter(int index, float value);
   public float getParameter(int index);
   public int getNumParameters();
   public String getParameterDisplay(int index);
   public String getParameterName(int index);
   public String getParameterLabel(int index);
+  
   public void setProgram(int index);
-  public String getProgramName();    
+  public String getProgramName();  
+  
   public void playNote(int noteNumber, int velocity);
+  
+  
 }

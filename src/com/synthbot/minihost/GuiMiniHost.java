@@ -37,12 +37,14 @@ public class GuiMiniHost implements PluginStringGuiListener  {
   private GuiMiniHostListener stringGui;
   
   private int channel = 0;
+  private int velocity = 127;
 
   public GuiMiniHost(File vstFile) {
     vst = null;
 
     stringGui = new PluginStringGui(this);
     try {
+      System.out.println("GuiMiniHost... about ot load ! "+vstFile.toString());
       vst = new JVstHost(vstFile, sampleRate, blockSize);
     } catch (JVstLoadException jvle) {
       jvle.printStackTrace(System.err);
@@ -61,7 +63,7 @@ public class GuiMiniHost implements PluginStringGuiListener  {
   
   public String setParameter(int index, float value){
     vst.setParameter(index, value);
-    return vst.getParameterLabel(index);
+    return vst.getParameterDisplay(index);
   }
 
   public float getParameter(int index){
@@ -79,9 +81,29 @@ public class GuiMiniHost implements PluginStringGuiListener  {
   
   public synchronized void playNote(int note, int velocity){
     try {
+      final int noteNo = note;
       ShortMessage midiMessage = new ShortMessage();
-      midiMessage.setMessage(ShortMessage.NOTE_ON, channel, note, velocity);
+      midiMessage.setMessage(ShortMessage.NOTE_ON, 0, note, velocity);
       audioThread.addMidiMessages(midiMessage);
+      // schedule a note off
+      new Thread() {
+	public void run() {
+	  try {
+	    ShortMessage midiMessageOff = new ShortMessage();
+	    // wait 250 ms then send a note off
+	    Thread.sleep(250);
+	    midiMessageOff.setMessage(ShortMessage.NOTE_OFF, 0, noteNo, 0);
+	    audioThread.addMidiMessages(midiMessageOff);
+	  } catch (InvalidMidiDataException imde) {
+	    imde.printStackTrace(System.err);
+	    //System.exit(1);
+	  } catch (InterruptedException e) {
+	    e.printStackTrace(System.err);
+	    //System.exit(1);
+	  }
+	}
+      }.start();
+    
     } catch (InvalidMidiDataException imde) {
       imde.printStackTrace(System.err);
       //System.exit(1);

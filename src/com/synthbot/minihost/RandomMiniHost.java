@@ -27,13 +27,10 @@ import java.io.File;
 import javax.sound.midi.ShortMessage;
 import javax.sound.midi.InvalidMidiDataException;
 
-/**
- * Plays a random note every 1 second.
- */
 public class RandomMiniHost   {
 
   private static final float sampleRate = 44100f;
-  private static final int blockSize = 4096;
+  private static final int blockSize = 8912;
   private JVstHost vst;
   private AudioThread audioThread;
 
@@ -62,11 +59,11 @@ public class RandomMiniHost   {
       while (true) {
         int note = (int) (Math.random() * 24) + 48;
 
-        Thread.sleep(500);
+        Thread.sleep(5000);
         midiMessage.setMessage(ShortMessage.NOTE_ON, channel, note, velocity);
         audioThread.addMidiMessages(midiMessage);
 
-        Thread.sleep(500);
+        Thread.sleep(5000);
         midiMessage.setMessage(ShortMessage.NOTE_OFF, channel, note, 0);
         audioThread.addMidiMessages(midiMessage);
 
