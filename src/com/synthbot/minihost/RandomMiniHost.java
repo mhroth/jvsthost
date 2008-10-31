@@ -21,18 +21,26 @@
 
 package com.synthbot.minihost;
 
+import com.synthbot.audioio.vst.JVstAudioThread;
 import com.synthbot.audioplugin.vst.JVstHost;
 import com.synthbot.audioplugin.vst.JVstLoadException;
 import java.io.File;
 import javax.sound.midi.ShortMessage;
 import javax.sound.midi.InvalidMidiDataException;
 
+/**
+ * This class is meant as a simple demonstration of how to host a JVstHost.
+ * It does not take advantage of any graphical elements. It simply sends random
+ * MIDI notes to the selected VST at regular intervals. RandomMiniHost may be used
+ * as a simple way to test plugin loading capabilities and audio system functionality
+ * from the command line.
+ */
 public class RandomMiniHost   {
 
   private static final float sampleRate = 44100f;
   private static final int blockSize = 8912;
   private JVstHost vst;
-  private AudioThread audioThread;
+  private JVstAudioThread audioThread;
 
   private int channel = 0;
   private int velocity = 127;
@@ -47,33 +55,32 @@ public class RandomMiniHost   {
     }
 
     // start the audio thread
-    audioThread = new AudioThread(vst);
+    audioThread = new JVstAudioThread(vst);
     Thread thread = new Thread(audioThread);
     thread.start();
 
     // create a midi note on message
     ShortMessage midiMessage = new ShortMessage();
+    ShortMessage[] midiMessages = {midiMessage};
     
-    // play a random note every 1000 ms
+    // play a random note every 1000ms for 1000ms
     try {
       while (true) {
         int note = (int) (Math.random() * 24) + 48;
 
-        Thread.sleep(5000);
+        Thread.sleep(1000);
         midiMessage.setMessage(ShortMessage.NOTE_ON, channel, note, velocity);
-        audioThread.addMidiMessages(midiMessage);
+        vst.setMidiEvents(midiMessages);
 
-        Thread.sleep(5000);
+        Thread.sleep(1000);
         midiMessage.setMessage(ShortMessage.NOTE_OFF, channel, note, 0);
-        audioThread.addMidiMessages(midiMessage);
+        vst.setMidiEvents(midiMessages);
 
       }
     } catch (InvalidMidiDataException imde) {
       imde.printStackTrace(System.err);
-      System.exit(1);
-    } catch (InterruptedException e) {
-      e.printStackTrace(System.err);
-      System.exit(1);
+    } catch (InterruptedException ie) {
+      ie.printStackTrace(System.err);
     }
   }
 

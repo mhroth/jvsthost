@@ -19,29 +19,22 @@
  *
  */
 
+package com.synthbot.minihost.view;
 
-package com.synthbot.minihost;
+import javax.swing.JFrame;
+
 /**
- *  <code>PluginStringGuiListener</code> - the host implements this
- *  and it allows the generic plugin gui to talk to the host in a
- *  controlled way.
- *
- * @author Matthew Yee-King, Martin Roth
- * @version 1.0
+ * A basic control GUI for the MiniHost.
  */
-public interface PluginStringGuiListener{
+public class JVstMiniHostGui extends JFrame {
+  
+  private static final String FRAME_TITLE = "JVstHost Mini Host";
+  
+  public JVstMiniHostGui() {
+    super(FRAME_TITLE);
+    setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+    setSize(320, 240);
+    setVisible(true);
+  }
 
-  public String setParameter(int index, float value);
-  public float getParameter(int index);
-  public int getNumParameters();
-  public String getParameterDisplay(int index);
-  public String getParameterName(int index);
-  public String getParameterLabel(int index);
-  
-  public void setProgram(int index);
-  public String getProgramName();  
-  
-  public void playNote(int noteNumber, int velocity);
-  
-  
 }

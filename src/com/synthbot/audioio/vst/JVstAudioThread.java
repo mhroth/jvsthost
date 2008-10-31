@@ -19,21 +19,22 @@
  *
  */
 
-package com.synthbot.minihost;
+package com.synthbot.audioio.vst;
 
 import com.synthbot.audioplugin.vst.JVstHost;
-import java.util.Vector;
-import javax.sound.midi.ShortMessage;
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.DataLine;
 import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.SourceDataLine;
 
-public class AudioThread implements Runnable {
+/**
+ * JVstAudioThread implements a continuously running audio stream, calling
+ * processReplacing on a single vst and sending the result to the sound output.
+ */
+public class JVstAudioThread implements Runnable {
 
   private JVstHost vst;
-  private volatile boolean keepRunning;
   private float[][] fOutputs;
   private byte[] bOutput;
   private int blockSize;
@@ -41,19 +42,17 @@ public class AudioThread implements Runnable {
   private AudioFormat audioFormat;
   private SourceDataLine sourceDataLine;
 
-  private Vector<ShortMessage> pendingMidi;
-
   private static final float ShortMaxValueAsFloat = (float) Short.MAX_VALUE;
 
-  public AudioThread(JVstHost vst) {
-    addJVstHost(vst);
+  public JVstAudioThread(JVstHost vst) {
+    this.vst = vst;
     numOutputs = vst.numOutputs();
     blockSize = vst.getBlockSize();
-    pendingMidi = new Vector<ShortMessage>();
+    fOutputs = new float[numOutputs][blockSize];
+    bOutput = new byte[numOutputs * blockSize * 2];
 
     audioFormat = new AudioFormat((int) vst.getSampleRate(), 16, vst.numOutputs(), true, false);
     DataLine.Info dataLineInfo = new DataLine.Info(SourceDataLine.class, audioFormat);
-    System.out.println("AudioThread::Sound card data line info:" + dataLineInfo.toString());
 
     sourceDataLine = null;
     try {
@@ -65,9 +64,17 @@ public class AudioThread implements Runnable {
       System.exit(1);
     }
   }
+  
+  @Override
+  protected void finalize() {
+    // close the sourceDataLine properly when this object is garbage collected
+    sourceDataLine.drain();
+    sourceDataLine.close();
+  }
 
   /**
-   * Converts float audio array to an interleaved audio array of 16-bit samples
+   * Converts a float audio array [-1,1] to an interleaved array of 16-bit samples
+   * in little-endian (low-byte, high-byte) format.
    */
   private byte[] floatsToBytes(float[][] fData, byte[] bData) {
     int index = 0;
@@ -80,70 +87,11 @@ public class AudioThread implements Runnable {
     }
     return bData;
   }
-
-  public void stopAudio() {
-    keepRunning = false;
-  }
-
-  public void addJVstHost(JVstHost vst) {
-    this.vst = vst;
-    fOutputs = new float[vst.numOutputs()][vst.getBlockSize()];
-    bOutput = new byte[vst.numOutputs() * vst.getBlockSize() * 2];
-  }
-
-  // midi events are collected and passed into the jvsthost every time
-  // processReplacing gets called
-  public synchronized void addMidiMessages(ShortMessage message) {
-    pendingMidi.add(message);
-  }
-
-  public synchronized ShortMessage[] getMidiMessages() {
-    ShortMessage[] messages = pendingMidi.toArray(new ShortMessage[0]);
-    pendingMidi.clear();
-    return messages;
-  }
-
+  
   public void run() {
-    keepRunning = true;
-    while (keepRunning) {
-      vst.setMidiEvents(getMidiMessages()); // pass in the midi event
+    while (true) {
       vst.processReplacing(fOutputs);
       sourceDataLine.write(floatsToBytes(fOutputs, bOutput), 0, bOutput.length);
     }
-    sourceDataLine.drain();
-    sourceDataLine.close();
   }
-  
-  /**
-   * Play the given array once, independent of the real-time audio thread.
-   * TODO: implement!
-   * @param fInputs
-   */
-  @Deprecated
-  public void playOnce(float[][] fInputs) {
-	DataLine.Info dataLineInfo = new DataLine.Info(SourceDataLine.class, audioFormat);
-	final int localBlockSize = 1024; 
-    sourceDataLine = null;
-    try {
-      sourceDataLine = (SourceDataLine) AudioSystem.getLine(dataLineInfo);
-      sourceDataLine.open(audioFormat, localBlockSize);
-      sourceDataLine.start();
-    } catch (LineUnavailableException lue) {
-      lue.printStackTrace(System.err);
-      System.exit(1);
-    }
-    byte[] bInputs = new byte[fInputs.length * fInputs[0].length * 2];
-    floatsToBytes(fInputs, bInputs);
-    /*
-    Thread thread = new Thread() {
-      public void run() {
-    	int bytesToWrite
-    	while
-        sourceDataLine.write(bInputs, 0, bOutput.length);
-      }
-    };
-    thread.start();
-    */
-  }
-
 }
