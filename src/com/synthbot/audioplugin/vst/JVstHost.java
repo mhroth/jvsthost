@@ -98,11 +98,7 @@ public class JVstHost implements JVstViewListener {
       throw new JVstLoadException("The plugin file does not exist: " + file.toString());
     }
     pluginFile = file;
-    try {
-      loadPlugin(pluginFile.toString());
-    } catch (JVstLoadException jvle) {
-      throw jvle; // pass on the exception
-    }
+    loadPlugin(pluginFile.toString());
 
     // configure the local variables
     this.sampleRate = sampleRate;

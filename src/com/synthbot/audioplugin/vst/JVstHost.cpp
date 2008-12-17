@@ -571,13 +571,15 @@ JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_loadPlugin
 
   // minihost.cpp
   #if _WIN32
-	const char *path = (char *)(env->GetStringUTFChars(pluginPath, NULL));
+    const char *path = (char *)(env->GetStringUTFChars(pluginPath, NULL));
     if (path == NULL) {
       env->ThrowNew(classJVstLoadException, "jstring conversion failed.");
+      return;
     }
     libptr = LoadLibrary (path);
     if (libptr == NULL) {
       env->ThrowNew(classJVstLoadException, "the library could not be loaded.");
+      return;
     }
     env->ReleaseStringUTFChars(pluginPath, path);
     AEffect* (*mainProc) (audioMasterCallback);
@@ -586,12 +588,14 @@ JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_loadPlugin
       mainProc = (AEffect* (*)(audioMasterCallback)) GetProcAddress((HMODULE) libptr, "main");
       if (!mainProc) {
         env->ThrowNew(classJVstLoadException, "The plugin entry function could not be found.");
+        return;
       }
     }
     ae = (AEffect *) mainProc(HostCallback);
     if(ae == NULL || ae->magic != kEffectMagic) {
       FreeLibrary((HMODULE) libptr); // unload the library
       env->ThrowNew(classJVstLoadException, "The plugin could not be instantiated.");
+      return;
     }
 
   #elif TARGET_API_MAC_CARBON
@@ -599,21 +603,25 @@ JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_loadPlugin
     const char *path = (char *) (env->GetStringUTFChars(pluginPath, NULL)); // convert the java string pathname into a c char array
     if (path == NULL) {
       env->ThrowNew(classJVstLoadException, "jstring conversion failed.");
+      return;
     }
     CFStringRef fileNameString = CFStringCreateWithCString(NULL, path, kCFStringEncodingUTF8);
     env->ReleaseStringUTFChars(pluginPath, path);
     if (fileNameString == NULL) {
 	    env->ThrowNew(classJVstLoadException, "CFString creation failed.");
+	    return;
     }
     CFURLRef url = CFURLCreateWithFileSystemPath(NULL, fileNameString, kCFURLPOSIXPathStyle, false);
     CFRelease(fileNameString);
     if (url == NULL) {
       env->ThrowNew(classJVstLoadException, "CFURLRef creation failed.");
+      return;
     }
     libptr = CFBundleCreate(NULL, url);
     CFRelease (url);
     if (libptr == NULL) {
       env->ThrowNew(classJVstLoadException, "The plugin bundle does not exist.");
+      return;
     }
     AEffect* (*mainProc) (audioMasterCallback);
     mainProc = (AEffect* (*)(audioMasterCallback)) CFBundleGetFunctionPointerForName((CFBundleRef) libptr, CFSTR("VSTPluginMain"));
@@ -622,12 +630,14 @@ JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_loadPlugin
       if (mainProc == NULL) {
         CFRelease((CFBundleRef)libptr);
 	      env->ThrowNew(classJVstLoadException, "The plugin entry function could not be found.");
+	      return;
       }
     }
     ae = (AEffect *) mainProc(HostCallback);
     if(ae == NULL || ae->magic != kEffectMagic) {
       CFRelease((CFBundleRef)libptr);
       env->ThrowNew(classJVstLoadException, "The plugin could not be instantiated.");
+      return;
     }
 
 
@@ -635,10 +645,12 @@ JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_loadPlugin
     const char *path = (char *) env->GetStringUTFChars(pluginPath, NULL); // convert the java string pathname into a c char array
 	  if (path == NULL) {
       env->ThrowNew(classJVstLoadException, "jstring conversion failed.");
+      return;
     }
     libptr = dlopen(path, RTLD_LAZY); // load the library
 	  if (libptr == NULL) {
 		  env->ThrowNew(classJVstLoadException, "The VST library could not be loaded.");
+		  return;
 	  } else {
       dlerror(); // clear the error field
     }
@@ -650,7 +662,7 @@ JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_loadPlugin
       if(vstPluginFactory == NULL) { // the entry function could not be found
         dlclose(libptr); // close the reference to the library
         env->ThrowNew(classJVstLoadException, "The plugin entry function could not be found.");
-        //printf("The plugin entry function canot be found: %s\n", dlerror()); // print the error
+        return;
       } else {
         dlerror(); // clear the error field
       }
@@ -659,6 +671,7 @@ JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_loadPlugin
     if(ae == NULL || ae->magic != kEffectMagic) {
       dlclose(libptr);
       env->ThrowNew(classJVstLoadException, "The plugin could not be instantiated.");
+      return;
     }
   #endif
 
