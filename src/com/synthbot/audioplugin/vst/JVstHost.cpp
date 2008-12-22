@@ -893,40 +893,6 @@ JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_processReplaci
   free(output);
 }
 
-/*
-JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_processReplacing
-  (JNIEnv *env, jobject jobj, jobjectArray jinputs, jobjectArray joutputs, jint sampleFrames, jint numInputs, jint numOutputs, jlong inputsPtr, jlong outputsPtr, jlong ae) {
-
-  setJNIEnv(jobj, env); // set the environment, such that this object can be later recovered for use by a callback
-  
-  AEffect *effect = (AEffect *)ae;
-  float **cinputs = (float **)inputsPtr;
-  float **coutputs = (float **)outputsPtr;
-  jfloatArray *input = (jfloatArray *)malloc(sizeof(jfloatArray) * numInputs);
-  jfloatArray *output = (jfloatArray *)malloc(sizeof(jfloatArray) * numOutputs);
-  for(int i = 0; i < numInputs; i++) {
-    input[i] = (jfloatArray)(env->GetObjectArrayElement(jinputs, i));
-    // consider using env->GetPrimitiveArrayCritical
-    cinputs[i] = env->GetFloatArrayElements(input[i], NULL);
-  }
-  for(int i = 0; i < numOutputs; i++) {
-    output[i] = (jfloatArray)(env->GetObjectArrayElement(joutputs, i));
-    coutputs[i] = env->GetFloatArrayElements(output[i], NULL);
-  }
-
-  effect->processReplacing(effect, cinputs, coutputs, (int)sampleFrames);
-
-  for(int i = 0; i < numInputs; i++) {
-    env->ReleaseFloatArrayElements(input[i], cinputs[i], JNI_ABORT);
-  }
-  for(int i = 0; i < numOutputs; i++) {
-    env->ReleaseFloatArrayElements(output[i], coutputs[i], 0);
-  }
-  free(input);
-  free(output);
-}
-*/
-
 JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_setParameter
   (JNIEnv *env, jobject jobj, jint index, jfloat value, jlong ae) {
 
@@ -1001,6 +967,12 @@ JNIEXPORT jint JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_numOutputs
   (JNIEnv *env, jobject jobj, jlong ae) {
   
   return ((AEffect *)ae)->numOutputs;
+}
+
+JNIEXPORT jint JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_numPrograms
+(JNIEnv *env, jobject jobj, jlong ae) {
+  
+  return ((AEffect *)ae)->numPrograms;
 }
 
 JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_setSampleRate

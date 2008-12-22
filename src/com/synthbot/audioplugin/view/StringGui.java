@@ -55,6 +55,7 @@ public class StringGui extends JFrame implements JVstView {
   private final JSlider[] sliders;
   private final JLabel[] displayLabels;
   private final ChangeListener[] changeListeners;
+  private final JComboBox programComboBox;
 
   public StringGui(JVstViewListener jVstViewListener) {
     super(jVstViewListener.getEffectName() + " by " + jVstViewListener.getVendorName());
@@ -207,25 +208,25 @@ public class StringGui extends JFrame implements JVstView {
     }
     vst.setProgram(0);
     
-    JComboBox progList = new JComboBox(progNames);
-    progList.setSelectedIndex(0);
-    progList.addActionListener(new ActionListener() {
+    programComboBox = new JComboBox(progNames);
+    programComboBox.setSelectedIndex(0);
+    programComboBox.addActionListener(new ActionListener() {
       public void actionPerformed(ActionEvent e) {
-        JComboBox cb = (JComboBox) e.getSource();
-        int index = cb.getSelectedIndex();
-        String progName = (String) cb.getSelectedItem();
-        float[] program;
+        int index = programComboBox.getSelectedIndex();
+        
+        // update the program
         vst.setProgram(index);
+    
         // now update the sliders...
         for (int i = 0; i < numParameters; i++) {
-          sliders[i].setValue((int) (vst.getParameter(i) * 127f));
+          setSliderValueWithoutFiringChangeListener(i, vst.getParameter(i));
         }
       }
     });
     
     globalContainer.add(scrollPane);
     globalContainer.add(keyboard);
-    globalContainer.add(progList);
+    globalContainer.add(programComboBox);
     this.add(globalContainer);
     
     this.setFocusable(true);
@@ -269,7 +270,7 @@ public class StringGui extends JFrame implements JVstView {
     if (!EventQueue.isDispatchThread()) {
       EventQueue.invokeLater(new Runnable() {
         public void run() {
-          // TODO(mhroth): imeplement
+          programComboBox.setSelectedIndex(index);
         }
       });
     }

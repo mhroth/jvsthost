@@ -80,16 +80,20 @@ public class JVstHost implements JVstViewListener {
   private long osxWindow = 0; // pointer to editor window in osx
   private long vstTimeInfoPtr = 0; // used to store an outstanding VstTimeInfo pointer
   
-  protected final File pluginFile;
-  protected volatile int blockSize;
-  protected volatile float sampleRate;
-  protected int vstNumInputs; // cached locally for processReplacing
-  protected int vstNumOutputs;  // cached locally for processReplacing
+  private final File pluginFile;
+  private int blockSize;
+  private float sampleRate;
+  private final int vstNumInputs; // cached locally for processReplacing
+  private final int vstNumOutputs;  // cached locally for processReplacing
+  private final int numParameters;
+  private final int numPrograms;
   
-  protected JVstView javaEditor = null;
+  private static final float[][] ZERO_LENGTH_INPUT_ARRAY = new float[0][0];
   
-  protected VstState currentState = VstState.SUSPENDED;
-  protected final VstVersion vstVersion;
+  private JVstView javaEditor = null;
+  
+  private VstState currentState = VstState.SUSPENDED;
+  private final VstVersion vstVersion;
   
   private final Vector<JVstHostListener> hostListeners;
   
@@ -108,6 +112,8 @@ public class JVstHost implements JVstViewListener {
     vstNumInputs = numInputs();
     vstNumOutputs = numOutputs();
     vstVersion = getVstVersion();
+    numParameters = numParameters();
+    numPrograms = numPrograms();
     
     hostListeners = new Vector<JVstHostListener>();
     
@@ -128,7 +134,10 @@ public class JVstHost implements JVstViewListener {
     System.loadLibrary("jvsthost");
   }
 
-  // load the C++ vst plugin object
+  /**
+   * Loads the native vst plugin object.
+   * @throws JVstLoadException  Thrown if there is a problem loading or instantiating the native object.
+   */
   private synchronized native void loadPlugin(String filename) throws JVstLoadException;
 
   private synchronized native void unloadPlugin(long inputsPtr, long outputsPtr, long pluginPtr, long libPtr);
@@ -149,12 +158,41 @@ public class JVstHost implements JVstViewListener {
    * @param inputs  The audio input to the plugin is read from this array.
    * @param outputs  The output of the plugin will be placed into this array.
    * @param blockSize  Number of samples to read from the input and output buffers. May not be larger than the length of the arrays.
+   * @throws IllegalArgumentException  Thrown if any of the arguments do not lie within their natural bounds.
+   * @throws NullPointerException  Thrown if the inputs or outputs arrays are null.
    */
-  public synchronized void processReplacing(float[][] inputs, float[][] outputs, int blockSize) {
+  public synchronized void processReplacing(float[][] inputs, float[][] outputs, int blockSize) throws IllegalArgumentException, NullPointerException {
+    if (inputs == null) {
+      throw new NullPointerException("The inputs array is null.");
+    } else if (inputs.length != vstNumInputs) {
+      throw new IllegalArgumentException("Input array length must equal the number of inputs: " + inputs.length + " != " + vstNumInputs);
+    } else {
+      for (float[] input : inputs) {
+        if (input.length < blockSize) {
+          throw new IllegalArgumentException("Input array length must be at least as large as the blockSize: " + input.length + " != " + blockSize);
+        }
+      }
+    }
+    if (outputs == null) {
+      throw new NullPointerException("The outputs array is null.");
+    } else if (outputs.length != vstNumOutputs) {
+      throw new IllegalArgumentException("Output array length must equal the number of outputs: " + outputs.length + " != " + vstNumOutputs);
+    } else {
+      for (float[] output : outputs) {
+        if (output.length < blockSize) {
+          throw new IllegalArgumentException("Output array length must be at least as large as the blockSize: " + output.length + " != " + blockSize);
+        }
+      }
+    }
+    if (blockSize < 0) {
+      throw new IllegalArgumentException("Block size must be non-negative: " + blockSize + " < 0");
+    }
+
     processReplacing(inputs, outputs, blockSize, vstNumInputs, vstNumOutputs, vstInputsPtr, vstOutputsPtr, vstPluginPtr);
   }
   /**
-   * Generate audio output from the plugin. Usually used with effect.
+   * Generate audio output from the plugin. Usually used with an effect.
+   * A block size of outputs[0].length is assumed.
    * @param inputs The audio input to the plugin is read from this array.
    * @param outputs The output of the plugin will be placed into this array.
    */
@@ -163,19 +201,28 @@ public class JVstHost implements JVstViewListener {
   }
   /**
    * Generate audio output from the plugin, without supplying any input. Usually used with synthesizers.
+   * Assumes that there are no inputs to this plugin; numInputs() == 0
    * @param outputs  The output of the plugin will be placed into this array
    */
   public synchronized void processReplacing(float[][] outputs) {
-    processReplacing(null, outputs);
+    processReplacing(ZERO_LENGTH_INPUT_ARRAY, outputs);
   }
 
   private synchronized native void setParameter(int index, float value, long pluginPtr);
   /**
-   * Set a parameter
+   * Set a parameter to a value.
    * @param index  Parameter index.
    * @param value  Parameter value.
+   * @throws IllegalArgumentException  Thrown if the parameter value is not between 0f and 1f.
+   * @throws IndexOutOfBoundsException  Thrown if the parameter index is < 0 or >= numParameters.
    */
-  public synchronized void setParameter(int index, float value) {
+  public synchronized void setParameter(int index, float value) throws IllegalArgumentException, IndexOutOfBoundsException {
+    if (index < 0 || index >= numParameters) {
+      throw new IndexOutOfBoundsException("Parameter index, " + index + ", must be between 0 and " + numParameters);
+    }
+    if (value < 0f || value > 1f) {
+      throw new IllegalArgumentException("Parameter values are bounded between 0 and 1.");
+    }
     setParameter(index, value, vstPluginPtr);
     if (shouldUpdateJavaEditor()) {
       javaEditor.updateParameter(index, value, getParameterDisplay(index));
@@ -183,22 +230,44 @@ public class JVstHost implements JVstViewListener {
   }
 
   private synchronized native float getParameter(int index, long pluginPtr);
-  public synchronized float getParameter(int index) {
+  /**
+   * Get the current value of a parameter.
+   * @param index  Parameter index.
+   * @throws IndexOutOfBoundsException  Thrown if the parameter index is < 0 or >= numParameters.
+   */
+  public synchronized float getParameter(int index) throws IndexOutOfBoundsException {
+    if (index < 0 || index >= numParameters) {
+      throw new IndexOutOfBoundsException("Parameter index, " + index + ", must be between 0 and " + numParameters);
+    }
     return getParameter(index, vstPluginPtr);
   }
 
   private synchronized native String getParameterName(int index, long pluginPtr);
-  public synchronized String getParameterName(int index) {
+  /**
+   * Get the name of a parameter.
+   * @param index  Parameter index.
+   * @throws IndexOutOfBoundsException  Thrown if the parameter index is < 0 or >= numParameters.
+   */
+  public synchronized String getParameterName(int index) throws IndexOutOfBoundsException {
+    if (index < 0 || index >= numParameters) {
+      throw new IndexOutOfBoundsException("Parameter index, " + index + ", must be between 0 and " + numParameters);
+    }
     return getParameterName(index, vstPluginPtr);
   }
 
   private synchronized native String getParameterDisplay(int index, long pluginPtr);
-  public synchronized String getParameterDisplay(int index) {
+  public synchronized String getParameterDisplay(int index) throws IndexOutOfBoundsException {
+    if (index < 0 || index >= numParameters) {
+      throw new IndexOutOfBoundsException("Parameter index, " + index + ", must be between 0 and " + numParameters);
+    }
     return getParameterDisplay(index, vstPluginPtr);
   }
 
   private synchronized native String getParameterLabel(int index, long pluginPtr);
-  public synchronized String getParameterLabel(int index) {
+  public synchronized String getParameterLabel(int index) throws IndexOutOfBoundsException {
+    if (index < 0 || index >= numParameters) {
+      throw new IndexOutOfBoundsException("Parameter index, " + index + ", must be between 0 and " + numParameters);
+    }
     return getParameterLabel(index, vstPluginPtr);
   }
 
@@ -232,8 +301,21 @@ public class JVstHost implements JVstViewListener {
     return numOutputs(vstPluginPtr);
   }
   
+  private synchronized native int numPrograms(long pluginPtr);
+  public synchronized int numPrograms() {
+    return numPrograms(vstPluginPtr);
+  }
+  
   private synchronized native void setSampleRate(float sampleRate, long pluginPtr);
-  public synchronized void setSampleRate(float sampleRate) {
+  /**
+   * Set the sample rate at which the plugin should process the audio.
+   * @param sampleRate  The new sample rate.
+   * @throws IllegalArgumentException  Thrown if the new sample rate is negative.
+   */
+  public synchronized void setSampleRate(float sampleRate) throws IllegalArgumentException {
+    if (sampleRate <= 0f) {
+      throw new IllegalArgumentException("Sample rate must be positive: " + sampleRate);
+    }
     this.sampleRate = sampleRate;
     setSampleRate(sampleRate, vstPluginPtr);
   }
@@ -243,7 +325,16 @@ public class JVstHost implements JVstViewListener {
   }
   
   private synchronized native void setBlockSize(int blockSize, long pluginPtr);
-  public synchronized void setBlockSize(int blockSize) {
+  /**
+   * Set the nominal block size which the plugin should expect to process data.
+   * The block size can be altered when calling processReplacing().
+   * @param blockSize  The new block size.
+   * @throws IllegalArgumentException  Thrown in the block size is negative.
+   */
+  public synchronized void setBlockSize(int blockSize) throws IllegalArgumentException {
+    if (blockSize < 0) {
+      throw new IllegalArgumentException("Blocks size must be positive: " + blockSize);
+    }
     this.blockSize = blockSize;
     setBlockSize(blockSize, vstPluginPtr);
   }
@@ -299,7 +390,15 @@ public class JVstHost implements JVstViewListener {
   }
 
   private synchronized native void setProgram(int index, long pluginPtr);
-  public synchronized void setProgram(int index) {
+  /**
+   * Set the current program to the given index.
+   * @param index  Program index.
+   * @throws IndexOutOfBoundsException  Thrown if the program index is negative.
+   */
+  public synchronized void setProgram(int index) throws IndexOutOfBoundsException {
+    if (index < 0 || index >= numPrograms) {
+      throw new IndexOutOfBoundsException("Program index " + index + " must be between 0 and " + numPrograms + ".");
+    }
     setProgram(index, vstPluginPtr);
     if (shouldUpdateJavaEditor()) {
       javaEditor.updateProgram(index);
@@ -330,10 +429,16 @@ public class JVstHost implements JVstViewListener {
   }
   
   private synchronized native void setChunk(int bankOrProgram, byte[] chunkData, long pluginPtr);
-  public synchronized void setBankChunk(byte[] chunkData) {
+  public synchronized void setBankChunk(byte[] chunkData) throws NullPointerException {
+    if (chunkData == null) {
+      throw new NullPointerException("Chunk data cannot be null.");
+    }
     setChunk(0, chunkData, vstPluginPtr);
   }
-  public synchronized void setProgramChunk(byte[] chunkData) {
+  public synchronized void setProgramChunk(byte[] chunkData) throws NullPointerException {
+    if (chunkData == null) {
+      throw new NullPointerException("Chunk data cannot be null.");
+    }
     setChunk(1, chunkData, vstPluginPtr);
   }
   
@@ -349,7 +454,7 @@ public class JVstHost implements JVstViewListener {
   
   private synchronized native int canDoBypass(long pluginPtr);
   public synchronized boolean canDoBypass() {
-    return (canDoBypass(vstPluginPtr) == 1);
+    return (canDoBypass(vstPluginPtr) != 0);
   }
   
   private synchronized native int producesSoundInStop(long pluginPtr);
@@ -431,7 +536,7 @@ public class JVstHost implements JVstViewListener {
   }
   
   public synchronized boolean isJavaEditorOpen() {
-    return (javaEditor != null);
+    return (javaEditor != null && javaEditor.isVisible());
   }
 
   private synchronized native void editIdle(long pluginPtr);
@@ -577,8 +682,11 @@ public class JVstHost implements JVstViewListener {
         listener.onAudioMasterProcessMidiEvents(message);
       }
     } catch (InvalidMidiDataException imde) {
+      /*
+       * If there is a problem in constructing the ShortMessage, just print out and eror message
+       * and allow the program to continue. It isn't the end of the world.
+       */
       imde.printStackTrace(System.err);
-      return;
     }
   }
   
