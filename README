@@ -3,17 +3,14 @@ by
 Martin Roth (mhroth@gmail.com)
 Matthew Yee-King
 
-JVstHost is an open-source Java-based VST host for Linux, Mac, and
+JVstHost is an open-source Java-based VST host for Linux, OS X, and
 Windows. It aims to load and manipulate all audio plugins conforming
-to the Steinberg VST standard, including those generated with
-jVSTwRapper and Faust.
+to the Steinberg VST standard, including those generated with jVSTwRapper.
 
 Note that the (only) constructor of JVstHost throws an exception of
-type com.synthbot.audioplugin.vst.JVstLoadException. Discussions
-regarding the "correctness" of a constructor throwing an exception
-aside, there are several things which may go wrong while loading a
-VST. For this reason, an exception is thrown with the details (see
-JVstLoadException.getMessage()).
+type com.synthbot.audioplugin.vst.JVstLoadException. There are several 
+things which may go wrong while loading a VST. For this reason, an exception 
+is thrown with the details (see JVstLoadException.getMessage()). See PROGRAMMING API.
 
 A class implementing the com.synthbot.audioplugin.vst.JVstHostListener
 interface can also register itself with a JvstHost object. It will
@@ -26,14 +23,14 @@ JVstHost is licensed under the GNU Lesser General Public License
 GETTING STARTED 
 === 
 All that you really need is to put JVstHost.jar into your java class path, and to put:
-* libjvsthost.jnilib into /Library/Java/Extensions (Mac OS X)
-* libjvsthost.so into /usr/local/lib (Linux)
-* jvsthost.dll into C:\WINDOWS\system32 (Windows)
+* libjvsthost2.jnilib into /Library/Java/Extensions (Mac OS X)
+* libjvsthost2.so into /usr/local/lib (Linux)
+* jvsthost2.dll into C:\WINDOWS\system32 (Windows)
 The directories may be system dependent. They must simply by listed in the Java classpath
 so that Java will know where to look for them.
 
-NOTE: There is a known (serious) bug in the Windows version at the moment. No synth seems to produce
-sound, though it can be otherwise manipulated. We're working on this...
+NOTE: Not all synths work. If you have one that you are particularly keen on
+working with, please e-mail us and we'll debug it with you.
 
 
 TESTING IT OUT
@@ -71,7 +68,7 @@ operating system. The script assumes that the Steinberg VST libraries
 (not included in this distribution due to Steinberg's licensing terms)
 are in the package subdirectory, ./vst2.x
 
-The script will also copy the resulting library, libjvsthost.jnilib,
+The script will also copy the resulting library, libjvsthost2.jnilib,
 to /Library/Java/Extensions.
 
 Linux 
@@ -93,3 +90,18 @@ An ant build script is included to build and test the Java parts of JVstHost. to
 
 cd jvsthost
 ant jar
+
+
+PROGRAMMING API
+===
+There is a basic idiom to loading a VST, which is written below.
+
+JVstHost2 vst;
+try {
+  vst = JVstHost2.newInstance(vstFile, sampleRate, blockSize);
+} catch (JVstLoadException jvle) {
+  jvle.printStackTrace(System.err);
+}
+
+This will return to you a fully initialised and operational vst. JVstHost2 does
+not have a constructor. Use only the newInstance method.
