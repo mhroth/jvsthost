@@ -1,6 +1,6 @@
 /*
- *  Copyright 2007, 2008 Martin Roth (mhroth@gmail.com)
- *                       Matthew Yee-King
+ *  Copyright 2007 - 2009 Martin Roth (mhroth@gmail.com)
+ *                        Matthew Yee-King
  * 
  *  This file is part of JVstHost.
  *
@@ -22,6 +22,7 @@
 package com.synthbot.audioplugin.vst.view;
 
 import javax.sound.midi.ShortMessage;
+
 
 /**
  *  <code>JVstGuiListener</code> - the host implements this
@@ -57,19 +58,21 @@ public interface JVstViewListener {
   public String getParameterLabel(int index);
   
   /**
+   * Return the number of programs that the plugin has.
+   */
+  public int numPrograms();
+  
+  /**
    * Change the current program to the given index.
    */
   public void setProgram(int index);
+  
+  public void queueMidiMessage(ShortMessage message);
   
   /**
    * Get the name of the current program/preset.
    */
   public String getProgramName();
-  
-  /**
-   * Play a given note (midi number 0-127) with a velocity (0-127).
-   */
-  public void setMidiEvents(ShortMessage[] messages);
   
   public String getVendorName();
   

@@ -1,7 +1,7 @@
 /*
- *  Copyright 2007, 2008 Martin Roth (mhroth@gmail.com)
- *                       Matthew Yee-King
- *
+ *  Copyright 2007 - 2009 Martin Roth (mhroth@gmail.com)
+ *                        Matthew Yee-King
+ * 
  *  This file is part of JVstHost.
  *
  *  JVstHost is free software: you can redistribute it and/or modify
@@ -13,7 +13,7 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU Lesser General Public License for more details.
- *
+ *  
  *  You should have received a copy of the GNU Lesser General Public License
  *  along with JVstHost.  If not, see <http://www.gnu.org/licenses/>.
  *
@@ -21,14 +21,13 @@
 
 package com.synthbot.audioplugin.view;
 
-import com.synthbot.audioplugin.vst.view.JVstView;
-import com.synthbot.audioplugin.vst.view.JVstViewListener;
-
-import java.awt.Dimension;
 import java.awt.Container;
-import java.awt.EventQueue;
+import java.awt.Dimension;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+
+import javax.sound.midi.InvalidMidiDataException;
+import javax.sound.midi.ShortMessage;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.ImageIcon;
@@ -42,12 +41,12 @@ import javax.swing.JScrollPane;
 import javax.swing.JSlider;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
-import javax.sound.midi.InvalidMidiDataException;
-import javax.sound.midi.ShortMessage;
 
-public class StringGui extends JFrame implements JVstView {
+import com.synthbot.audioplugin.vst.view.JVstViewListener;
 
-  private final static long serialVersionUID = 5L;
+public class StringGui extends JFrame {
+
+  private final static long serialVersionUID = 0L;
   
   private final JVstViewListener vst;
 
@@ -173,7 +172,7 @@ public class StringGui extends JFrame implements JVstView {
           try {
             ShortMessage smNoteOn = new ShortMessage();
             smNoteOn.setMessage(ShortMessage.NOTE_ON, 0, 48 + note, 96);
-            vst.setMidiEvents(new ShortMessage[] {smNoteOn});
+            vst.queueMidiMessage(smNoteOn);
           } catch (InvalidMidiDataException imde) {
             imde.printStackTrace(System.err);
           }
@@ -185,7 +184,7 @@ public class StringGui extends JFrame implements JVstView {
                 Thread.sleep(2000);
                 ShortMessage smNoteOff = new ShortMessage();
                 smNoteOff.setMessage(ShortMessage.NOTE_OFF, 0, 48 + note, 96);
-                vst.setMidiEvents(new ShortMessage[] {smNoteOff});
+                vst.queueMidiMessage(smNoteOff);
               } catch (InvalidMidiDataException imde) {
                 imde.printStackTrace(System.err);
               } catch (InterruptedException ie) {
@@ -199,30 +198,36 @@ public class StringGui extends JFrame implements JVstView {
     }
     
     keyboard.add(Box.createHorizontalGlue());
-    
-    // add program changer
-    String[] progNames = new String[127];
-    for (int i = 0; i < 127; i++) {
-      vst.setProgram(i);
-      progNames[i] = vst.getProgramName() + ":" + i;
-    }
-    vst.setProgram(0);
-    
-    programComboBox = new JComboBox(progNames);
-    programComboBox.setSelectedIndex(0);
-    programComboBox.addActionListener(new ActionListener() {
-      public void actionPerformed(ActionEvent e) {
-        int index = programComboBox.getSelectedIndex();
-        
-        // update the program
-        vst.setProgram(index);
-    
-        // now update the sliders...
-        for (int i = 0; i < numParameters; i++) {
-          setSliderValueWithoutFiringChangeListener(i, vst.getParameter(i));
-        }
+
+    /*
+     * Add the program changer.
+     */
+    if (vst.numPrograms() > 0) {
+      String[] progNames = new String[vst.numPrograms()];
+      for (int i = 0; i < progNames.length; i++) {
+        vst.setProgram(i);
+        progNames[i] = vst.getProgramName() + ":" + i;
       }
-    });
+      vst.setProgram(0);
+      
+      programComboBox = new JComboBox(progNames);
+      programComboBox.setSelectedIndex(0);
+      programComboBox.addActionListener(new ActionListener() {
+        public void actionPerformed(ActionEvent e) {
+          int index = programComboBox.getSelectedIndex();
+          
+          // update the program
+          vst.setProgram(index);
+          
+          // now update the sliders...
+          for (int i = 0; i < numParameters; i++) {
+            sliders[i].setValue((int) (vst.getParameter(i) * 127f));
+          }
+        }
+      });
+    } else {
+      programComboBox = new JComboBox(new String[] {"This plugin has no programs."});
+    }
     
     globalContainer.add(scrollPane);
     globalContainer.add(keyboard);
@@ -240,39 +245,12 @@ public class StringGui extends JFrame implements JVstView {
     sliders[index].addChangeListener(changeListeners[index]);
   }
   
-  public void setVisible(boolean visible) {
-    // if changing visible state to visible
-    if (!this.isVisible() && visible) {
-      // Rereads and resets all variable parameters and displays them in the GUI.
-      for (int i = 0; i < numParameters; i++) {
-        setSliderValueWithoutFiringChangeListener(i, vst.getParameter(i));
-        displayLabels[i].setText(vst.getParameterDisplay(i));
-      }
-    }
-    super.setVisible(visible);
-  }
-  
-  public void updateParameter(final int index, final float value, final String display) {
-    // update the GUI only if the calling thread is not the GUI thread.
-    // If it is, then the GUI has already been updated!
-    if (!EventQueue.isDispatchThread()) {
-      // allow the GUI thread to update the GUI when it is convenient
-      EventQueue.invokeLater(new Runnable() {
-        public void run() {
-          setSliderValueWithoutFiringChangeListener(index, value);
-          displayLabels[index].setText(vst.getParameterDisplay(index));
-        }
-      });
-    }
+  public void updateParameter(final int index, final float value) {
+    setSliderValueWithoutFiringChangeListener(index, value);
+    displayLabels[index].setText(vst.getParameterDisplay(index));
   }
   
   public void updateProgram(final int index) {
-    if (!EventQueue.isDispatchThread()) {
-      EventQueue.invokeLater(new Runnable() {
-        public void run() {
-          programComboBox.setSelectedIndex(index);
-        }
-      });
-    }
+    programComboBox.setSelectedIndex(index);
   }
 }

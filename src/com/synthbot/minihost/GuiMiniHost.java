@@ -1,6 +1,6 @@
 /*
- *  Copyright 2007, 2008 Martin Roth (mhroth@gmail.com)
- *                       Matthew Yee-King
+ *  Copyright 2007 - 2009 Martin Roth (mhroth@gmail.com)
+ *                        Matthew Yee-King
  * 
  *  This file is part of JVstHost.
  *
@@ -21,21 +21,24 @@
 
 package com.synthbot.minihost;
 
-import com.synthbot.audioio.vst.JVstAudioThread;
-import com.synthbot.audioplugin.view.StringGui;
-import com.synthbot.audioplugin.vst.JVstHost;
-import com.synthbot.audioplugin.vst.JVstLoadException;
-import com.synthbot.minihost.view.JVstMiniHostGui;
 import java.io.File;
 
-public class GuiMiniHost {
+import com.synthbot.audioio.vst.JVstAudioThread;
+import com.synthbot.audioplugin.view.StringGui;
+import com.synthbot.audioplugin.vst.JVstLoadException;
+import com.synthbot.audioplugin.vst.vst2.AbstractJVstHostListener;
+import com.synthbot.audioplugin.vst.vst2.JVstHost2;
+import com.synthbot.minihost.view.JVstMiniHostGui;
 
-  private static final float sampleRate = 44100f;
-  private static final int blockSize = 4096;
-  private JVstHost vst = null;
-  private JVstAudioThread audioThread;
+public class GuiMiniHost extends AbstractJVstHostListener {
 
+  private static final float SAMPLE_RATE = 44100f;
+  private static final int BLOCK_SIZE = 4096;
   private static final String AUDIO_THREAD = "Audio Thread";
+  
+  private JVstHost2 vst;
+  private JVstAudioThread audioThread;
+  private StringGui gui;
   
   public GuiMiniHost(File vstFile) {
 
@@ -45,12 +48,15 @@ public class GuiMiniHost {
     
     // load the vst
     try {
-      vst = new JVstHost(vstFile, sampleRate, blockSize);
+      vst = JVstHost2.newInstance(vstFile, SAMPLE_RATE, BLOCK_SIZE);
     } catch (JVstLoadException jvle) {
       jvle.printStackTrace(System.err);
       System.exit(1);
     }
-        
+    
+    // add the host as a listener to receive any callbacks
+    vst.addJVstHostListener(this);
+    
     // start the audio thread
     audioThread = new JVstAudioThread(vst);
     Thread thread = new Thread(audioThread);
@@ -58,11 +64,14 @@ public class GuiMiniHost {
     thread.setDaemon(true); // allows the JVM to exit normally
     thread.start();
     
-    // set the Java editor
-    vst.setJavaEditor(new StringGui(vst));
-    
-    // open the Java string gui of the vst
-    vst.openJavaEditor();
+    // create and display a StringGui for controlling the vst
+    gui = new StringGui(vst);
+    gui.setVisible(true);
+  }
+  
+  @Override
+  public void onAudioMasterAutomate(JVstHost2 vst, int index, float value) {
+    gui.updateParameter(index, value);
   }
 
   public static void main(String[] args) {

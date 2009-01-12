@@ -1,6 +1,6 @@
 /*
- *  Copyright 2007, 2008 Martin Roth (mhroth@gmail.com)
- *                       Matthew Yee-King
+ *  Copyright 2007 - 2009 Martin Roth (mhroth@gmail.com)
+ *                        Matthew Yee-King
  * 
  *  This file is part of JVstHost.
  *
@@ -21,7 +21,8 @@
 
 package com.synthbot.audioio.vst;
 
-import com.synthbot.audioplugin.vst.JVstHost;
+import com.synthbot.audioplugin.vst.vst2.JVstHost2;
+
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.DataLine;
@@ -34,9 +35,10 @@ import javax.sound.sampled.SourceDataLine;
  */
 public class JVstAudioThread implements Runnable {
 
-  private JVstHost vst;
-  private float[][] fOutputs;
-  private byte[] bOutput;
+  private JVstHost2 vst;
+  private final float[][] fInputs;
+  private final float[][] fOutputs;
+  private final byte[] bOutput;
   private int blockSize;
   private int numOutputs;
   private AudioFormat audioFormat;
@@ -44,10 +46,11 @@ public class JVstAudioThread implements Runnable {
 
   private static final float ShortMaxValueAsFloat = (float) Short.MAX_VALUE;
 
-  public JVstAudioThread(JVstHost vst) {
+  public JVstAudioThread(JVstHost2 vst) {
     this.vst = vst;
     numOutputs = vst.numOutputs();
     blockSize = vst.getBlockSize();
+    fInputs = new float[vst.numInputs()][blockSize];
     fOutputs = new float[numOutputs][blockSize];
     bOutput = new byte[numOutputs * blockSize * 2];
 
@@ -66,10 +69,14 @@ public class JVstAudioThread implements Runnable {
   }
   
   @Override
-  protected void finalize() {
-    // close the sourceDataLine properly when this object is garbage collected
-    sourceDataLine.drain();
-    sourceDataLine.close();
+  protected void finalize() throws Throwable {
+    try {
+      // close the sourceDataLine properly when this object is garbage collected
+      sourceDataLine.drain();
+      sourceDataLine.close();      
+    } finally {
+      super.finalize();
+    }
   }
 
   /**
@@ -90,7 +97,7 @@ public class JVstAudioThread implements Runnable {
   
   public void run() {
     while (true) {
-      vst.processReplacing(fOutputs);
+      vst.processReplacing(fInputs, fOutputs, blockSize);
       sourceDataLine.write(floatsToBytes(fOutputs, bOutput), 0, bOutput.length);
     }
   }

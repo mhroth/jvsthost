@@ -1,6 +1,6 @@
 /*
- *  Copyright 2007, 2008 Martin Roth (mhroth@gmail.com)
- *                       Matthew Yee-King
+ *  Copyright 2007 - 2009 Martin Roth (mhroth@gmail.com)
+ *                        Matthew Yee-King
  * 
  *  This file is part of JVstHost.
  *
@@ -21,15 +21,33 @@
 
 package com.synthbot.audioplugin.vst;
 
-import javax.sound.midi.ShortMessage;
-
-/**
- * A class implementing this interface can receive callbacks from a VST plugin.
- */
-public interface JVstHostListener {
+public enum VstVersion {
+  VST20(2), 
+  VST21(2100), 
+  VST22(2200), 
+  VST23(2300), 
+  VST24(2400),
+  UNKNOWN(0);
   
-  public void onAudioMasterAutomate(int index, float value);
+  private final int vstVersionNumber;
   
-  public void onAudioMasterProcessMidiEvents(ShortMessage message);
-
+  private VstVersion(int version) {
+    this.vstVersionNumber = version;
+  }
+  
+  /**
+   * Returns the numerical vst version id.
+   */
+  public int getVstVersionNumber() {
+    return vstVersionNumber;
+  }
+  
+  public static VstVersion getVersion(int version) {
+    for (VstVersion vstVersion : VstVersion.values()) {
+      if (vstVersion.getVstVersionNumber() == version) {
+        return vstVersion;
+      }
+    }
+    return UNKNOWN;
+  }
 }

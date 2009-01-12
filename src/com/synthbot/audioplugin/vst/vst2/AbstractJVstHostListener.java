@@ -19,21 +19,22 @@
  *
  */
 
-package com.synthbot.audioplugin.vst;
+package com.synthbot.audioplugin.vst.vst2;
 
-/**
- * This Exception is thrown when a VST cannot be loaded via the native method.
- */
-public class JVstLoadException extends Exception {
+import javax.sound.midi.ShortMessage;
 
-  static final long serialVersionUID = 0L;
-  
-  public JVstLoadException(Throwable cause) {
-    super(cause);
+public abstract class AbstractJVstHostListener implements JVstHostListener {
+
+  public void onAudioMasterAutomate(JVstHost2 vst, int index, float value) {
+    // do nothing
   }
-  
-  public JVstLoadException(String message) {
-    super(message);
+
+  public void onAudioMasterIoChanged(JVstHost2 vst, int numInputs, int numOutputs, int initalDelay, int numParameters) {
+    // do nothing
   }
-  
+
+  public void onAudioMasterProcessMidiEvents(JVstHost2 vst, ShortMessage message) {
+    // do nothing
+  }
+
 }

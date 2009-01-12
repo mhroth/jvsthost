@@ -1,6 +1,6 @@
 /*
- *  Copyright 2007, 2008 Martin Roth (mhroth@gmail.com)
- *                       Matthew Yee-King
+ *  Copyright 2007 - 2009 Martin Roth (mhroth@gmail.com)
+ *                        Matthew Yee-King
  * 
  *  This file is part of JVstHost.
  *
@@ -19,7 +19,7 @@
  *
  */
 
-package com.synthbot.audioplugin.vst;
+package com.synthbot.audioplugin.vst.vst2;
 
 import java.io.BufferedWriter;
 import java.io.DataInputStream;
@@ -44,10 +44,10 @@ public class JVstPersistence {
   private static final String opaqueBankMagic = "FBCh";
   
   /**
-   * Saves a preset of the given JVstHost to the given File.
-   * @return True if the load was successful.
+   * Loads a preset of the JVstHost2 to the File.
+   * @return True if the load was successful. False otherwise.
    */
-  public static boolean loadPreset(JVstHost vst, File file) {
+  public static boolean loadPreset(JVstHost2 vst, File file) {
     try {
       DataInputStream fxp = new DataInputStream(new FileInputStream(file));
       
@@ -90,7 +90,7 @@ public class JVstPersistence {
         return false;
       }
       
-      if (vst.getVersion() < fxp.readInt()) {
+      if (vst.getPluginVersion() < fxp.readInt()) {
         fxp.close();
         return false;
       }
@@ -130,11 +130,15 @@ public class JVstPersistence {
    * This method is not yet implemented.
    */
   @Deprecated
-  public static boolean loadBank(JVstHost vst, File file) {
+  public static boolean loadBank(JVstHost2 vst, File file) {
     return false;
   }
   
-  public static boolean savePreset(JVstHost vst, File file) {
+  /**
+   * Saves a preset of the JVstHost2 to the File.
+   * @return True if the save was successful. False otherwise.
+   */
+  public static boolean savePreset(JVstHost2 vst, File file) {
     try {
       DataOutputStream fxpOut = new DataOutputStream(new FileOutputStream(file));
 
@@ -169,7 +173,7 @@ public class JVstPersistence {
       fxpOut.writeBytes(vst.getUniqueId());
       
       // plugin version
-      fxpOut.writeInt(vst.getVersion());
+      fxpOut.writeInt(vst.getPluginVersion());
       
       // numParams
       if (vst.acceptsProgramsAsChunks()) {
@@ -221,7 +225,7 @@ public class JVstPersistence {
    * This method is not yet implemented.
    */
   @Deprecated
-  public static boolean saveBank(JVstHost vst, File file) {
+  public static boolean saveBank(JVstHost2 vst, File file) {
     return false;
   }
   
@@ -229,7 +233,7 @@ public class JVstPersistence {
    * The preset parameters are saved as human readable text. Useful for debugging.
    * @return True if the save was successful.
    */
-  public static boolean savePresetAsText(JVstHost vst, File file) {
+  public static boolean savePresetAsText(JVstHost2 vst, File file) {
     try {
       BufferedWriter fxp = new BufferedWriter(new FileWriter(file));
       StringBuilder sb = new StringBuilder();

@@ -19,7 +19,10 @@
  *
  */
 
-#include "com_synthbot_audioplugin_vst_JVstHost.h"
+#include "com_synthbot_audioplugin_vst_vst2_JVstHost2.h"
+#include "com_synthbot_audioplugin_vst_vst2_JVstHost20.h"
+#include "com_synthbot_audioplugin_vst_vst2_JVstHost23.h"
+#include "com_synthbot_audioplugin_vst_vst2_JVstHost24.h"
 #include "audioeffectx.cpp" // needed for Host/PlugCanDos
 #include <stdlib.h>
 
@@ -41,45 +44,45 @@
 // GLOBAL VARIABLES
 JavaVM *jvm;
 jclass vpwClass;
-jclass classJVstLoadException;
-jmethodID println;
-jmethodID getSampleRate;
-jmethodID getBlockSize;
 jmethodID vpwAudioMasterProcessMidiEvents;
+jmethodID vpwAudioMasterIoChanged;
 jmethodID vpwAudioMasterAutomate;
 jmethodID getPluginDirectory;
-jfieldID fidVtiPtr;
-typedef struct {
-  JNIEnv *env;
-  jobject jobj;
-} envobjmap;
-envobjmap **map;
-int mapSize;
-int maxMapSize;
-
-jobject getJobj(JNIEnv *env) {
-  if (env == NULL) return NULL;
-  for (int i = 0; i < mapSize; i++) {
-    if (map[i]->env == env) {
-      return map[i]->jobj;
-    }
-  }
-  return NULL;
-}
 
 /**
- * returns true if the given object was found in the map assumging the given environment,
- * and the environment was updated
+ * A struct to hold locally cached variables for the host
  */
-bool setJNIEnv(jobject jobj, JNIEnv *env) {
-  for (int i = 0; i < mapSize; i++) {
-    // IsSameObject is used as the map version is a GlobalReference, and the input version is likely to be a local reference
-    if (env->IsSameObject(map[i]->jobj, jobj) == JNI_TRUE) {
-      map[i]->env = env;
-      return true;
-    }
+typedef struct hostLocalVars {
+  jobject jVstHost2;
+  float **fInputs;
+  float **fOutputs;
+  double **dInputs;
+  double **dOutputs;
+  VstTimeInfo *vti;
+  void *libPtr;
+  float sampleRate; // cache the current sampleRate and blockSize, so that the java object doesn't have to be asked for it every time an audioMaster callback is made (such as for VstTimeInfo pointers).
+  int blockSize;
+};
+
+void initHostLocalArrays(AEffect *effect) {
+  ((hostLocalVars *) effect->resvd1)->fInputs = (float **) malloc(sizeof(float *) * effect->numInputs);
+  ((hostLocalVars *) effect->resvd1)->fOutputs = (float **) malloc(sizeof(float *) * effect->numOutputs);
+  if (effect->flags & effFlagsCanDoubleReplacing) {
+    ((hostLocalVars *) effect->resvd1)->dInputs = (double **) malloc(sizeof(double *) * effect->numInputs);
+    ((hostLocalVars *) effect->resvd1)->dOutputs = (double **) malloc(sizeof(double *) * effect->numOutputs);
+  } else {
+    ((hostLocalVars *) effect->resvd1)->dInputs = 0;
+    ((hostLocalVars *) effect->resvd1)->dOutputs = 0;
   }
-  return false;
+}
+
+void freeHostLocalArrays(AEffect *effect) {
+  free(((hostLocalVars *) effect->resvd1)->fInputs);
+  free(((hostLocalVars *) effect->resvd1)->fOutputs);
+  if (effect->flags & effFlagsCanDoubleReplacing) {
+    free(((hostLocalVars *) effect->resvd1)->dInputs);
+    free(((hostLocalVars *) effect->resvd1)->dOutputs);
+  }
 }
 
 /**
@@ -92,23 +95,13 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *ur_jvm, void *reserved) {
   
   JNIEnv *env;
   jvm->GetEnv((void **)&env, JNI_VERSION);
-  jclass javaClass = env->FindClass("com/synthbot/audioplugin/vst/JVstHost");
+  jclass javaClass = env->FindClass("com/synthbot/audioplugin/vst/vst2/JVstHost2");
   vpwClass = (jclass) env->NewWeakGlobalRef(javaClass);
-  javaClass = env->FindClass("com/synthbot/audioplugin/vst/JVstLoadException");
-  classJVstLoadException = (jclass) env->NewWeakGlobalRef(javaClass);
-  
-  println = env->GetStaticMethodID(vpwClass, "println", "(Ljava/lang/String;)V");
-  getSampleRate = env->GetMethodID(vpwClass, "getSampleRate", "()F");
-  getBlockSize = env->GetMethodID(vpwClass, "getBlockSize", "()I");
+
   vpwAudioMasterProcessMidiEvents = env->GetMethodID(vpwClass, "audioMasterProcessMidiEvents", "(IIII)V");
+  vpwAudioMasterIoChanged = env->GetMethodID(vpwClass, "audioMasterIoChanged", "(IIII)V");
   vpwAudioMasterAutomate = env->GetMethodID(vpwClass, "audioMasterAutomate", "(IF)V");
-  getPluginDirectory = env->GetMethodID(vpwClass, "getPluginDirectory", "()Ljava/lang/String;");
-  fidVtiPtr = env->GetFieldID(vpwClass, "vstTimeInfoPtr", "J");
-  
-  // initialise map
-  mapSize = 0;
-  maxMapSize = 128;
-  map = (envobjmap **) malloc(sizeof(envobjmap *) * maxMapSize);
+  //getPluginDirectory = env->GetMethodID(vpwClass, "getPluginDirectory", "()Ljava/lang/String;");
   
   return JNI_VERSION;
 }
@@ -117,12 +110,10 @@ JNIEXPORT void JNICALL JNI_OnUnload(JavaVM *jvm, void *reserved) {
   JNIEnv *env;
   jvm->GetEnv((void **)&env, JNI_VERSION);
   env->DeleteWeakGlobalRef(vpwClass);
-  
-  // free the map
-  for (int i = 0; i < mapSize; i++) {
-    free(map[i]);
-  }
-  free(map);
+}
+
+jobject getCachedCallingObject(AEffect *effect) {
+  return ((hostLocalVars *) effect->resvd1)->jVstHost2;
 }
 
 void opcode2string(VstInt32 opcode, VstIntPtr value, JNIEnv *env) {
@@ -257,11 +248,11 @@ void opcode2string(VstInt32 opcode, VstIntPtr value, JNIEnv *env) {
       message = env->NewStringUTF("audioMasterCloseFileSelector");
       break;
     }
-    case 6: { // audioMasterWantMidi. This opcode is deprecated in vst 2.4 and thus not directly referenceable in the source code
+    case audioMasterWantMidi: {
       message = env->NewStringUTF("audioMasterWantMidi: DEPRECATED in VST 2.4");
       break;
     }
-    case 14: { // audioMasterNeedIdle
+    case audioMasterNeedIdle: {
       message = env->NewStringUTF("audioMasterNeedIdle: DEPRECATED in VST 2.4");
       break;
     }
@@ -273,15 +264,23 @@ void opcode2string(VstInt32 opcode, VstIntPtr value, JNIEnv *env) {
       break;
     }
   }
-  env->CallStaticObjectMethod(vpwClass, println, message);
-  
+
+  // calls System.out.println(message);
+  env->CallObjectMethod(
+      env->GetStaticObjectField(
+          env->FindClass("java/lang/System"), 
+          env->GetStaticFieldID(env->FindClass("java/lang/System"), "out", "Ljava/io/PrintStream;")), 
+      env->GetMethodID(env->FindClass("java/io/PrintStream"), "println", "(Ljava/lang/String;)V"), 
+      message);
+
 }
 
 // opcodes listed in aeffect.h and aeffectx.h
 VstIntPtr VSTCALLBACK HostCallback (AEffect *effect, VstInt32 opcode, VstInt32 index, VstIntPtr value, void *ptr, float opt) {
+
   JNIEnv *env;
   jvm->GetEnv((void **)&env, JNI_VERSION);
-  
+
   //opcode2string(opcode, value, env);
   
   switch(opcode) {
@@ -290,15 +289,12 @@ VstIntPtr VSTCALLBACK HostCallback (AEffect *effect, VstInt32 opcode, VstInt32 i
     // such as by the plugin's own editor
     // called when the plugin calls setParameterAutomated
     case audioMasterAutomate: {
-      jobject jobj = getJobj(env);
-      if (jobj != NULL) {
-        env->CallVoidMethod(
-            jobj, 
-            vpwAudioMasterAutomate,
-            (jint) index,
-            (jfloat) opt);
-      }
-      return 0;
+      env->CallVoidMethod(
+          getCachedCallingObject(effect),
+          vpwAudioMasterAutomate,
+          (jint) index,
+          (jfloat) opt);
+      return 1;
     }
     
     // Host VST version
@@ -334,17 +330,9 @@ VstIntPtr VSTCALLBACK HostCallback (AEffect *effect, VstInt32 opcode, VstInt32 i
     // check aeffecx.h!
     // note that the vti struct must be freed by the host, not the plugin.
     case audioMasterGetTime: {
-      jobject jobj = getJobj(env);
-      if (jobj == NULL)
-          return NULL;
-      VstTimeInfo *oldVti = (VstTimeInfo *) env->GetLongField(jobj, fidVtiPtr);
-      if (oldVti != NULL) {
-        free(oldVti);
-      }
-
-      VstTimeInfo *vti = (VstTimeInfo *) malloc(sizeof(VstTimeInfo)); // init all fields to zero
+      VstTimeInfo *vti = ((hostLocalVars *) effect->resvd1)->vti;
       vti->samplePos = 0.0;
-      vti->sampleRate = (double) HostCallback(effect, audioMasterGetSampleRate, 0, NULL, NULL, 0.0);
+      vti->sampleRate = (double) ((hostLocalVars *) effect->resvd1)->sampleRate; // HostCallback(effect, audioMasterGetSampleRate, 0, NULL, NULL, 0.0);
       vti->flags = 0;
       if (value & kVstNanosValid != 0) { // bit 8
         // Live returns this...
@@ -385,8 +373,7 @@ VstIntPtr VSTCALLBACK HostCallback (AEffect *effect, VstInt32 opcode, VstInt32 i
         //vti->samplesToNextClock = 0;
         //vti->flags |= kVstClockValid;
       }
-    
-      env->SetLongField(jobj, fidVtiPtr, (jlong) vti);
+      
       return (VstIntPtr) vti;
     }
     
@@ -400,10 +387,6 @@ VstIntPtr VSTCALLBACK HostCallback (AEffect *effect, VstInt32 opcode, VstInt32 i
      * NOTE: less information is being passed up than is available in the VstMidiEvent structure.
      */
     case audioMasterProcessEvents: {
-      jobject jobj = getJobj(env);
-      if (jobj == NULL)
-          return 0; // oops!
-      
       VstEvents *vstes = (VstEvents *)ptr;
       VstEvent *vste;
       VstMidiEvent *vstme;
@@ -415,7 +398,7 @@ VstIntPtr VSTCALLBACK HostCallback (AEffect *effect, VstInt32 opcode, VstInt32 i
           case kVstMidiType: {
             vstme = (VstMidiEvent *)vste;
             env->CallVoidMethod(
-                jobj, 
+                getCachedCallingObject(effect),
                 vpwAudioMasterProcessMidiEvents, 
                 ((jint) vstme->midiData[0]) & 0x000000F0,
                 ((jint) vstme->midiData[0]) & 0x0000000F,
@@ -433,6 +416,20 @@ VstIntPtr VSTCALLBACK HostCallback (AEffect *effect, VstInt32 opcode, VstInt32 i
       return 1;
     }
     
+    case audioMasterIOChanged: {
+     freeHostLocalArrays(effect);
+     initHostLocalArrays(effect); // reinitialise the arrays with the new numInputs and numOutputs
+             
+      env->CallVoidMethod(
+          getCachedCallingObject(effect),
+          vpwAudioMasterIoChanged,
+          effect->numInputs,
+          effect->numOutputs,
+          effect->initialDelay,
+          effect->numParams);
+      return 1;
+    }
+    
     // [index]: new width [value]: new height [return value]: 1 if supported
     case audioMasterSizeWindow: {
       return 0; // not supported
@@ -440,23 +437,12 @@ VstIntPtr VSTCALLBACK HostCallback (AEffect *effect, VstInt32 opcode, VstInt32 i
     
     // [return value]: current sample rate
     case audioMasterGetSampleRate: {
-      jobject jobj = getJobj(env);
-      if (jobj == NULL) {
-        return (VstIntPtr) 44100.0; // default
-      } else {
-        return (VstIntPtr) env->CallFloatMethod(jobj, getSampleRate);
-      }
+      return (VstIntPtr) ((hostLocalVars *) effect->resvd1)->sampleRate;
     }
     
     // Returns block size from Host
     case audioMasterGetBlockSize: {
-      jobject jobj = getJobj(env);
-      if (jobj == NULL) {
-        return (VstIntPtr) 44100; // default
-      } else {
-        // this cast seems like a very strange thing to do!
-        return (VstIntPtr) env->CallIntMethod(jobj, getBlockSize);
-      }
+      return (VstIntPtr) ((hostLocalVars *) effect->resvd1)->blockSize;
     }
     
     // [return value]: input latency in audio samples
@@ -479,7 +465,7 @@ VstIntPtr VSTCALLBACK HostCallback (AEffect *effect, VstInt32 opcode, VstInt32 i
 	    kVstProcessLevelPrefetch,		///< 3: currently in 'sequencer' thread (MIDI, timer etc)
 	    kVstProcessLevelOffline			///< 4: currently offline processing and thus in user thread
       */
-      return kVstProcessLevelRealtime;
+      return kVstProcessLevelUnknown;
     }
     
     // [return value]: current automation state
@@ -488,14 +474,14 @@ VstIntPtr VSTCALLBACK HostCallback (AEffect *effect, VstInt32 opcode, VstInt32 i
     }
     
     case audioMasterGetVendorString: {
-      strcpy((char *)ptr, "Roth/Yee-King");
+      strcpy((char *)ptr, "Synthbot.com");
       // in general should prolly call the java code for this string
-      return 1; // return success?
+      return 1;
     }
     
     case audioMasterGetProductString: {
-      strcpy((char *)ptr, "SynthBot");
-      return 1; // return success?
+      strcpy((char *)ptr, "JVstHost2");
+      return 1;
     }
     
     case audioMasterGetVendorVersion: {
@@ -512,8 +498,8 @@ VstIntPtr VSTCALLBACK HostCallback (AEffect *effect, VstInt32 opcode, VstInt32 i
       else if(strcmp(canDo, canDoReceiveVstEvents) == 0)               return 1;
       else if(strcmp(canDo, canDoReceiveVstMidiEvent) == 0)            return 1;
       else if(strcmp(canDo, canDoReportConnectionChanges) == 0)        return 0;
-      else if(strcmp(canDo, canDoAcceptIOChanges) == 0)                return 0;
-      else if(strcmp(canDo, canDoSizeWindow) == 0)                     return 1;
+      else if(strcmp(canDo, canDoAcceptIOChanges) == 0)                return 1;
+      else if(strcmp(canDo, canDoSizeWindow) == 0)                     return 0;
       else if(strcmp(canDo, canDoOffline) == 0)                        return 0;
       else if(strcmp(canDo, canDoOpenFileSelector) == 0)               return 0;
       else if(strcmp(canDo, canDoCloseFileSelector) == 0)              return 0;
@@ -559,13 +545,23 @@ VstIntPtr VSTCALLBACK HostCallback (AEffect *effect, VstInt32 opcode, VstInt32 i
       return 0;
     }
     
-    default: return 0;
+    default: {
+      return 0;
+    }
   }
 }
 
-JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_loadPlugin
-  (JNIEnv *env, jobject jobj, jstring pluginPath) {
+JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_setThis
+  (JNIEnv *env, jobject jobj, jlong ae) {
 
+  AEffect *effect = (AEffect *)ae;
+  ((hostLocalVars *) effect->resvd1)->jVstHost2 = env->NewWeakGlobalRef(jobj);
+  
+}
+
+JNIEXPORT jlong JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost2_loadPlugin
+  (JNIEnv *env, jclass jclazz, jstring pluginPath) {
+  
   void *libptr = NULL;
   AEffect *ae = NULL;
 
@@ -573,13 +569,17 @@ JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_loadPlugin
   #if _WIN32
     const char *path = (char *)(env->GetStringUTFChars(pluginPath, NULL));
     if (path == NULL) {
-      env->ThrowNew(classJVstLoadException, "jstring conversion failed.");
-      return;
+      env->ThrowNew(
+          env->FindClass("com/synthbot/audioplugin/vst/JVstLoadException"), 
+          "jstring conversion failed.");
+      return 0;
     }
     libptr = LoadLibrary (path);
     if (libptr == NULL) {
-      env->ThrowNew(classJVstLoadException, "the library could not be loaded.");
-      return;
+      env->ThrowNew(
+          env->FindClass("com/synthbot/audioplugin/vst/JVstLoadException"), 
+          "The native VST library could not be loaded.");
+      return 0;
     }
     env->ReleaseStringUTFChars(pluginPath, path);
     AEffect* (*mainProc) (audioMasterCallback);
@@ -587,70 +587,90 @@ JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_loadPlugin
     if (!mainProc) {
       mainProc = (AEffect* (*)(audioMasterCallback)) GetProcAddress((HMODULE) libptr, "main");
       if (!mainProc) {
-        env->ThrowNew(classJVstLoadException, "The plugin entry function could not be found.");
-        return;
+        FreeLibrary((HMODULE) libptr);
+        env->ThrowNew(
+            env->FindClass("com/synthbot/audioplugin/vst/JVstLoadException"), 
+            "The plugin entry function could not be found.");
+        return 0;
       }
     }
     ae = (AEffect *) mainProc(HostCallback);
     if(ae == NULL || ae->magic != kEffectMagic) {
       FreeLibrary((HMODULE) libptr); // unload the library
-      env->ThrowNew(classJVstLoadException, "The plugin could not be instantiated.");
-      return;
+      env->ThrowNew(
+          env->FindClass("com/synthbot/audioplugin/vst/JVstLoadException"), 
+          "The plugin could not be instantiated.");
+      return 0;
     }
 
   #elif TARGET_API_MAC_CARBON
-    // http://developer.apple.com/documentation/CoreFoundation/Reference/CFBundleRef/Reference/reference.html
     const char *path = (char *) (env->GetStringUTFChars(pluginPath, NULL)); // convert the java string pathname into a c char array
     if (path == NULL) {
-      env->ThrowNew(classJVstLoadException, "jstring conversion failed.");
-      return;
+      env->ThrowNew(
+          env->FindClass("com/synthbot/audioplugin/vst/JVstLoadException"), 
+          "jstring conversion failed.");
+      return 0;
     }
     CFStringRef fileNameString = CFStringCreateWithCString(NULL, path, kCFStringEncodingUTF8);
     env->ReleaseStringUTFChars(pluginPath, path);
     if (fileNameString == NULL) {
-	    env->ThrowNew(classJVstLoadException, "CFString creation failed.");
-	    return;
+	    env->ThrowNew(
+          env->FindClass("com/synthbot/audioplugin/vst/JVstLoadException"), 
+          "CFString creation failed.");
+	    return 0;
     }
     CFURLRef url = CFURLCreateWithFileSystemPath(NULL, fileNameString, kCFURLPOSIXPathStyle, false);
     CFRelease(fileNameString);
     if (url == NULL) {
-      env->ThrowNew(classJVstLoadException, "CFURLRef creation failed.");
-      return;
+      env->ThrowNew(
+          env->FindClass("com/synthbot/audioplugin/vst/JVstLoadException"), 
+          "CFURLRef creation failed.");
+      return 0;
     }
     libptr = CFBundleCreate(NULL, url);
     CFRelease (url);
     if (libptr == NULL) {
-      env->ThrowNew(classJVstLoadException, "The plugin bundle does not exist.");
-      return;
+      env->ThrowNew(
+          env->FindClass("com/synthbot/audioplugin/vst/JVstLoadException"), 
+          "The plugin bundle does not exist.");
+      return 0;
     }
     AEffect* (*mainProc) (audioMasterCallback);
     mainProc = (AEffect* (*)(audioMasterCallback)) CFBundleGetFunctionPointerForName((CFBundleRef) libptr, CFSTR("VSTPluginMain"));
     if (mainProc == NULL) {
       mainProc = (AEffect* (*)(audioMasterCallback)) CFBundleGetFunctionPointerForName((CFBundleRef) libptr, CFSTR("main_macho"));
       if (mainProc == NULL) {
-        CFRelease((CFBundleRef)libptr);
-	      env->ThrowNew(classJVstLoadException, "The plugin entry function could not be found.");
-	      return;
+        CFRelease((CFBundleRef)libptr); // unload the library
+	      env->ThrowNew(
+            env->FindClass("com/synthbot/audioplugin/vst/JVstLoadException"), 
+            "The plugin entry function could not be found.");
+	      return 0;
       }
     }
     ae = (AEffect *) mainProc(HostCallback);
     if(ae == NULL || ae->magic != kEffectMagic) {
-      CFRelease((CFBundleRef)libptr);
-      env->ThrowNew(classJVstLoadException, "The plugin could not be instantiated.");
-      return;
+      CFRelease((CFBundleRef)libptr); // close the library
+      env->ThrowNew(
+          env->FindClass("com/synthbot/audioplugin/vst/JVstLoadException"), 
+          "The plugin could not be instantiated.");
+      return 0;
     }
 
 
   #else // for unix
     const char *path = (char *) env->GetStringUTFChars(pluginPath, NULL); // convert the java string pathname into a c char array
 	  if (path == NULL) {
-      env->ThrowNew(classJVstLoadException, "jstring conversion failed.");
-      return;
+      env->ThrowNew(
+          env->FindClass("com/synthbot/audioplugin/vst/JVstLoadException"), 
+          "jstring conversion failed.");
+      return 0;
     }
     libptr = dlopen(path, RTLD_LAZY); // load the library
 	  if (libptr == NULL) {
-		  env->ThrowNew(classJVstLoadException, "The VST library could not be loaded.");
-		  return;
+		  env->ThrowNew(
+          env->FindClass("com/synthbot/audioplugin/vst/JVstLoadException"), 
+          "The VST library could not be loaded.");
+		  return 0;
 	  } else {
       dlerror(); // clear the error field
     }
@@ -661,61 +681,71 @@ JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_loadPlugin
       vstPluginFactory = (AEffect* (*)(audioMasterCallback))dlsym(libptr, "main"); // try another entry function
       if(vstPluginFactory == NULL) { // the entry function could not be found
         dlclose(libptr); // close the reference to the library
-        env->ThrowNew(classJVstLoadException, "The plugin entry function could not be found.");
-        return;
+        env->ThrowNew(
+            env->FindClass("com/synthbot/audioplugin/vst/JVstLoadException"), 
+            "The plugin entry function could not be found.");
+        return 0;
       } else {
         dlerror(); // clear the error field
       }
+    } else {
+      dlerror();
     }
     ae = (AEffect *) vstPluginFactory(HostCallback); // create the audioeffect!
     if(ae == NULL || ae->magic != kEffectMagic) {
       dlclose(libptr);
-      env->ThrowNew(classJVstLoadException, "The plugin could not be instantiated.");
-      return;
+      env->ThrowNew(
+          env->FindClass("com/synthbot/audioplugin/vst/JVstLoadException"), 
+          "The plugin could not be instantiated.");
+      return 0;
     }
   #endif
 
   ae->dispatcher (ae, effOpen, 0, 0, 0, 0); // open the plugin. Should be called, but many VSTs may not do anything with it
+  
+  // initialise the local variables for the host
+  ae->resvd1 = (VstIntPtr) malloc(sizeof(hostLocalVars));
+  ((hostLocalVars *) ae->resvd1)->jVstHost2 = 0;
+  initHostLocalArrays(ae);
+  ((hostLocalVars *) ae->resvd1)->vti = (VstTimeInfo *) malloc(sizeof(VstTimeInfo));
+  ((hostLocalVars *) ae->resvd1)->libPtr = libptr;
 
-  // set C pointers for various constructs  
-  jfieldID fid = env->GetFieldID(vpwClass, "vstLibPtr", "J");
-  env->SetLongField(jobj, fid, (jlong) libptr);
-  
-  fid = env->GetFieldID(vpwClass, "vstPluginPtr", "J");
-  env->SetLongField(jobj, fid, (jlong) ae);
-  
-  float **inputs = (float **)malloc(sizeof(float *) * ae->numInputs);
-  fid = env->GetFieldID(vpwClass, "vstInputsPtr", "J");
-  env->SetLongField(jobj, fid, (jlong) inputs);
-
-  float **outputs = (float **)malloc(sizeof(float *) * ae->numOutputs);
-  fid = env->GetFieldID(vpwClass, "vstOutputsPtr", "J");
-  env->SetLongField(jobj, fid, (jlong) outputs);
-  
-  if (mapSize < maxMapSize) {
-    envobjmap *eom = (envobjmap *) malloc(sizeof(envobjmap));
-    eom->jobj = (jobject) env->NewWeakGlobalRef(jobj); // store a weak global reference to the object
-    map[mapSize++] = eom;
-  }
-  setJNIEnv(jobj, env); // just in case some callback needs this at this time
+  return (jlong) ae;
 }
 
-JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_unloadPlugin
-  (JNIEnv *env, jobject jobj, jlong inputsPtr, jlong outputsPtr, jlong ae, jlong libPtr) {
+JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost2_unloadPlugin
+  (JNIEnv *env, jclass jclazz, jlong ae) {
   
-  free((float **)inputsPtr);
-  free((float **)outputsPtr);
+  if (ae != 0) {
+    AEffect *effect = (AEffect *)ae;
+    
+    void *libPtr = ((hostLocalVars *) effect->resvd1)->libPtr;
+    
+    // free the host local variables
+    env->DeleteWeakGlobalRef(((hostLocalVars *) effect->resvd1)->jVstHost2);
+    freeHostLocalArrays(effect);
+    free(((hostLocalVars *) effect->resvd1)->vti);
+    free((hostLocalVars *) effect->resvd1);
+    
+    // close the plugin
+    effect->dispatcher (effect, effClose, 0, 0, 0, 0);
+    
+    // close the library from which the plugin was loaded
+    #if _WIN32
+      FreeLibrary((HMODULE) libPtr);
+    #elif TARGET_API_MAC_CARBON
+      CFRelease((CFBundleRef)libPtr);
+    #else
+      dlclose(libPtr);
+    #endif
+  }
+}
+
+JNIEXPORT jint JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost2_getVstVersion
+  (JNIEnv *env, jclass jclazz, jlong ae) {
+
   AEffect *effect = (AEffect *)ae;
-  effect->dispatcher (effect, effClose, 0, 0, 0, 0);
-  
-  // close the reference to the library
-  #if _WIN32
-    FreeLibrary((HMODULE) libPtr);
-  #elif TARGET_API_MAC_CARBON
-    CFRelease ((CFBundleRef)libPtr);  // plugin unloads automatically when all bundle references to it are gone
-  #else // unix
-    dlclose((void *)libPtr);
-  #endif
+  return effect->dispatcher(effect, effGetVstVersion, 0, 0, 0, 0);
 }
 
 #if TARGET_API_MAC_CARBON
@@ -748,14 +778,10 @@ OSStatus windowHandler (EventHandlerCallRef inHandlerCallRef, EventRef inEvent, 
 #endif
 
 // http://developer.apple.com/documentation/Carbon/Reference/Window_Manager/Reference/reference.html
-JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_openEditor
-  (JNIEnv *env, jobject jobj, jlong ae) {
+JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_openEditor
+  (JNIEnv *env, jclass jclazz, jlong ae) {
 
   AEffect *effect = (AEffect *)ae;
-
-  // if this plugin does not have an editor, return.
-  // There is nothing to be done here.
-  if((effect->flags & effFlagsHasEditor) == 0) return;
 
   #if _WIN32
     /*
@@ -824,14 +850,14 @@ JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_openEditor
     // keep track of window so that it can be properly deleted when
     // the editor window is closed
     jfieldID fid = env->GetFieldID(vpwClass, "osxWindow", "J");
-    env->SetLongField(jobj, fid, (jlong) window);
+    env->SetLongField((jobject) effect->resvd1, fid, (jlong) window);
   #else // unix
   
   #endif
 }
 
-JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_closeEditor
-  (JNIEnv *env, jobject jobj, jlong ae) {
+JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_closeEditor
+  (JNIEnv *env, jclass jclazz, jlong ae) {
 
   AEffect *effect = (AEffect *)ae;
   effect->dispatcher (effect, effEditClose, 0, 0, 0, 0);
@@ -840,10 +866,10 @@ JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_closeEditor
   
   #elif TARGET_API_MAC_CARBON
     jfieldID fid = env->GetFieldID(vpwClass, "osxWindow", "J");
-    WindowRef window = (WindowRef) env->GetLongField(jobj, fid);
+    WindowRef window = (WindowRef) env->GetLongField((jobject) effect->resvd1, fid);
     if(window != NULL) {
       CFRelease(window); // ReleaseWindow (window); the latter is deprecated in OS10.5
-      env->SetLongField(jobj, fid, NULL);
+      env->SetLongField((jobject) effect->resvd1, fid, NULL);
     } else {
       // error condition. window should be non-NULL
     }
@@ -853,161 +879,20 @@ JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_closeEditor
   #endif
 }
 
-JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_editIdle
-  (JNIEnv *env, jobject jobj, jlong ae) {
+JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_editIdle
+  (JNIEnv *env, jclass jclazz, jlong ae) {
   
   AEffect *effect = (AEffect *) ae;
   effect->dispatcher(effect, effEditIdle, 0, 0, 0, 0);
 }
 
-JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_processReplacing
-  (JNIEnv *env, jobject jobj, jobjectArray jinputs, jobjectArray joutputs, jint sampleFrames, jint numInputs, jint numOutputs, jlong inputsPtr, jlong outputsPtr, jlong ae) {
+/**
+ * Sends the midi messages to the vst via effProcessEvents, and returns
+ * a pointer to the VstEvents struct. This should be freed /after/ the
+ * corresponding call to processX.
+ */
+VstEvents *setMidiEvents(JNIEnv *env, jobjectArray midiMessages, AEffect* effect) {
 
-  // set the environment, such that this object can be later recovered for use by a callback
-  // which often happens as a result of calling processReplacing
-  setJNIEnv(jobj, env);
-  
-  AEffect *effect = (AEffect *)ae;
-  float **cinputs = (float **)inputsPtr;
-  float **coutputs = (float **)outputsPtr;
-  jfloatArray *input = (jfloatArray *) malloc(sizeof(jfloatArray) * numInputs);
-  jfloatArray *output = (jfloatArray *) malloc(sizeof(jfloatArray) * numOutputs);
-  for(int i = 0; i < numInputs; i++) {
-    input[i] = (jfloatArray) env->GetObjectArrayElement(jinputs, i);
-    cinputs[i] = (float *) env->GetPrimitiveArrayCritical(input[i], NULL);
-  }
-  for(int i = 0; i < numOutputs; i++) {
-    output[i] = (jfloatArray) env->GetObjectArrayElement(joutputs, i);
-    coutputs[i] = (float *) env->GetPrimitiveArrayCritical(output[i], NULL);
-  }
-
-  effect->processReplacing(effect, cinputs, coutputs, (int)sampleFrames);
-
-  for(int i = 0; i < numInputs; i++) {
-    env->ReleasePrimitiveArrayCritical(input[i], cinputs[i], JNI_ABORT);
-  }
-  for(int i = 0; i < numOutputs; i++) {
-    env->ReleasePrimitiveArrayCritical(output[i], coutputs[i], 0);
-  }
-  free(input);
-  free(output);
-}
-
-JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_setParameter
-  (JNIEnv *env, jobject jobj, jint index, jfloat value, jlong ae) {
-
-  AEffect *effect = (AEffect *)ae;
-  effect->setParameter(effect, index, value);
-}
-
-JNIEXPORT jfloat JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_getParameter
-  (JNIEnv *env, jobject jobj, jint index, jlong ae) {
-
-  AEffect *effect = (AEffect *)ae;
-  return effect->getParameter(effect, index);
-}
-
-JNIEXPORT jstring JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_getEffectName
-  (JNIEnv *env, jobject jobj, jlong ae) {
-  
-  AEffect *effect = (AEffect *)ae;
-  char *name = (char *)malloc(sizeof(char) * kVstMaxEffectNameLen);
-  effect->dispatcher (effect, effGetEffectName, 0, 0, name, 0);
-  jstring jname = env->NewStringUTF(name);
-  free(name);
-  return jname;
-}
-
-JNIEXPORT jstring JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_getParameterName
-  (JNIEnv *env, jobject jobj, jint index, jlong ae) {
-
-  AEffect *effect = (AEffect *)ae;
-  char *name = (char *)malloc(sizeof(char) * kVstMaxParamStrLen);
-  effect->dispatcher (effect, effGetParamName, index, 0, name, 0);
-  jstring jname = env->NewStringUTF(name);
-  free(name);
-  return jname;
-}
-
-JNIEXPORT jstring JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_getVendorName
-  (JNIEnv *env, jobject jobj, jlong ae) {
-
-  AEffect *effect = (AEffect *)ae;
-  char *name = (char *)malloc(sizeof(char) * kVstMaxVendorStrLen);
-  effect->dispatcher (effect, effGetVendorString, 0, 0, name, 0);
-  jstring jname = env->NewStringUTF(name);
-  free(name);
-  return jname;
-}
-
-JNIEXPORT jstring JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_getProductString
-  (JNIEnv *env, jobject jobj, jlong ae) {
-
-  AEffect *effect = (AEffect *)ae;
-  char *name = (char *)malloc(sizeof(char) * kVstMaxProductStrLen);
-  effect->dispatcher (effect, effGetProductString, 0, 0, name, 0);
-  jstring jname = env->NewStringUTF(name);
-  free(name);
-  return jname;
-}
-
-JNIEXPORT jint JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_numParameters
-  (JNIEnv *env, jobject jobj, jlong ae) {
-  
-  return ((AEffect *)ae)->numParams;
-}
-
-JNIEXPORT jint JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_numInputs
-  (JNIEnv *env, jobject jobj, jlong ae) {
-  
-  return ((AEffect *)ae)->numInputs;
-}
-
-JNIEXPORT jint JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_numOutputs
-  (JNIEnv *env, jobject jobj, jlong ae) {
-  
-  return ((AEffect *)ae)->numOutputs;
-}
-
-JNIEXPORT jint JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_numPrograms
-(JNIEnv *env, jobject jobj, jlong ae) {
-  
-  return ((AEffect *)ae)->numPrograms;
-}
-
-JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_setSampleRate
-  (JNIEnv *env, jobject jobj, jfloat sampleRate, jlong ae) {
-  
-  AEffect *effect = (AEffect *)ae;
-  effect->dispatcher (effect, effSetSampleRate, 0, 0, 0, sampleRate);
-}
-
-JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_setBlockSize
-  (JNIEnv *env, jobject jobj, jint blockSize, jlong ae) {
-  
-  AEffect *effect = (AEffect *)ae;
-  effect->dispatcher (effect, effSetBlockSize, 0, blockSize, 0, 0);
-}
-
-JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_suspend
-  (JNIEnv *env, jobject jobj, jlong ae) {
-
-  AEffect *effect = (AEffect *)ae;
-  effect->dispatcher (effect, effMainsChanged, 0, 0, 0, 0);
-}
-
-JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_resume
-  (JNIEnv *env, jobject jobj, jlong ae) {
-
-  AEffect *effect = (AEffect *)ae;  
-  effect->dispatcher (effect, effMainsChanged, 0, 1, 0, 0);
-}
-
-JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_setMidiEvents
-  (JNIEnv *env, jobject jobj, jobjectArray midiMessages, jlong ae) {
-  
-  AEffect *effect = (AEffect *)ae;
-  
   // set up the vst events data structures
   int numMessages = 0;
   if (midiMessages != NULL) {
@@ -1054,15 +939,294 @@ JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_setMidiEvents
   // send the events to the vst
   effect->dispatcher (effect, effProcessEvents, 0, 0, vstes, 0);
   
-  // free the data structures
-  for(int i = 0; i < numMessages; i++) {
+  return vstes;
+}
+
+/**
+ * Frees a VstEvents struct.
+ */
+void freeMidiEvents(VstEvents *vstes) {
+  for(int i = 0; i < vstes->numEvents; i++) {
     free(vstes->events[i]);
   }
   free(vstes);
 }
 
-JNIEXPORT jstring JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_getProgramName
-  (JNIEnv *env, jobject jobj, jlong ae) {
+JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_processReplacing
+  (JNIEnv *env, jclass jclazz, jobjectArray messages, jobjectArray jinputs, jobjectArray joutputs, jint sampleFrames, jlong ae) {
+  
+  AEffect *effect = (AEffect *)ae;
+  
+  VstEvents *vstes = setMidiEvents(env, messages, effect);
+  
+  float **cinputs = ((hostLocalVars *) effect->resvd1)->fInputs;
+  float **coutputs = ((hostLocalVars *) effect->resvd1)->fOutputs;
+  for(int i = 0; i < effect->numInputs; i++) {
+    cinputs[i] = (float *) env->GetPrimitiveArrayCritical(
+        (jfloatArray) env->GetObjectArrayElement(jinputs, i), 
+        NULL);
+    if (cinputs[i] == NULL) {
+      env->ThrowNew(
+          env->FindClass("java/lang/OutOfMemoryError"),
+          "GetPrimitiveArrayCritical failed to return a valid pointer.");
+      return;
+    }
+  }
+  for(int i = 0; i < effect->numOutputs; i++) {
+    coutputs[i] = (float *) env->GetPrimitiveArrayCritical(
+        (jfloatArray) env->GetObjectArrayElement(joutputs, i),
+        NULL);
+    if (coutputs[i] == NULL) {
+      env->ThrowNew(
+          env->FindClass("java/lang/OutOfMemoryError"),
+          "GetPrimitiveArrayCritical failed to return a valid pointer.");
+      return;
+    }
+  }
+
+  effect->processReplacing(effect, cinputs, coutputs, (int) sampleFrames);
+
+  for(int i = 0; i < effect->numInputs; i++) {
+    env->ReleasePrimitiveArrayCritical(
+        (jfloatArray) env->GetObjectArrayElement(jinputs, i),
+        cinputs[i],
+        JNI_ABORT);
+  }
+  for(int i = 0; i < effect->numOutputs; i++) {
+    env->ReleasePrimitiveArrayCritical(
+        (jfloatArray) env->GetObjectArrayElement(joutputs, i),
+        coutputs[i],
+        0);
+  }
+
+  freeMidiEvents(vstes);
+}
+
+JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost24_processDoubleReplacing
+  (JNIEnv *env, jclass jclazz, jobjectArray messages, jobjectArray jinputs, jobjectArray joutputs, jint sampleFrames, jlong ae) {
+  
+  AEffect *effect = (AEffect *)ae;
+  
+  VstEvents *vstes = setMidiEvents(env, messages, effect);
+  
+  double **cinputs = ((hostLocalVars *) effect->resvd1)->dInputs;
+  double **coutputs = ((hostLocalVars *) effect->resvd1)->dOutputs;
+  for(int i = 0; i < effect->numInputs; i++) {
+    cinputs[i] = (double *) env->GetPrimitiveArrayCritical(
+        (jdoubleArray) env->GetObjectArrayElement(jinputs, i), 
+        NULL);
+    if (cinputs[i] == NULL) {
+      env->ThrowNew(
+          env->FindClass("java/lang/OutOfMemoryError"),
+          "GetPrimitiveArrayCritical failed to return a valid pointer.");
+      return;
+    }
+  }
+  for(int i = 0; i < effect->numOutputs; i++) {
+    coutputs[i] = (double *) env->GetPrimitiveArrayCritical(
+        (jdoubleArray) env->GetObjectArrayElement(joutputs, i),
+        NULL);
+    if (coutputs[i] == NULL) {
+      env->ThrowNew(
+          env->FindClass("java/lang/OutOfMemoryError"),
+          "GetPrimitiveArrayCritical failed to return a valid pointer.");
+      return;
+    }
+  }
+
+  effect->processDoubleReplacing(effect, cinputs, coutputs, (int) sampleFrames);
+
+  for(int i = 0; i < effect->numInputs; i++) {
+    env->ReleasePrimitiveArrayCritical(
+        (jdoubleArray) env->GetObjectArrayElement(jinputs, i),
+        cinputs[i],
+        JNI_ABORT);
+  }
+  for(int i = 0; i < effect->numOutputs; i++) {
+    env->ReleasePrimitiveArrayCritical(
+        (jdoubleArray) env->GetObjectArrayElement(joutputs, i),
+        coutputs[i],
+        0);
+  }
+
+  free(cinputs);
+  free(coutputs);
+  freeMidiEvents(vstes);
+}
+
+JNIEXPORT jint JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost24_canDoubleReplacing
+  (JNIEnv *env, jclass jclazz, jlong ae) {
+ 
+  return (((AEffect *)ae)->flags & effFlagsCanDoubleReplacing);
+}
+
+JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_process
+  (JNIEnv *env, jclass jclazz, jobjectArray messages, jobjectArray jinputs, jobjectArray joutputs, jint sampleFrames, jlong ae) {
+  
+  AEffect *effect = (AEffect *)ae;
+  
+  VstEvents *vstes = setMidiEvents(env, messages, effect);
+
+  float **cinputs = ((hostLocalVars *) effect->resvd1)->fInputs;
+  float **coutputs = ((hostLocalVars *) effect->resvd1)->fOutputs;
+  for(int i = 0; i < effect->numInputs; i++) {
+    cinputs[i] = (float *) env->GetPrimitiveArrayCritical(
+        (jfloatArray) env->GetObjectArrayElement(jinputs, i), 
+        NULL);
+    if (cinputs[i] == NULL) {
+      env->ThrowNew(
+          env->FindClass("java/lang/OutOfMemoryError"),
+          "GetPrimitiveArrayCritical failed to return a valid pointer.");
+      return;
+    }
+  }
+  for(int i = 0; i < effect->numOutputs; i++) {
+    coutputs[i] = (float *) env->GetPrimitiveArrayCritical(
+        (jfloatArray) env->GetObjectArrayElement(joutputs, i),
+        NULL);
+    if (coutputs[i] == NULL) {
+      env->ThrowNew(
+          env->FindClass("java/lang/OutOfMemoryError"),
+          "GetPrimitiveArrayCritical failed to return a valid pointer.");
+      return;
+    }
+  }
+
+  effect->process(effect, cinputs, coutputs, (int) sampleFrames);
+
+  for(int i = 0; i < effect->numInputs; i++) {
+    env->ReleasePrimitiveArrayCritical(
+        (jfloatArray) env->GetObjectArrayElement(jinputs, i),
+        cinputs[i],
+        JNI_ABORT);
+  }
+  for(int i = 0; i < effect->numOutputs; i++) {
+    env->ReleasePrimitiveArrayCritical(
+        (jfloatArray) env->GetObjectArrayElement(joutputs, i),
+        coutputs[i],
+        0);
+  }
+
+  free(cinputs);
+  free(coutputs);
+  freeMidiEvents(vstes);
+}
+
+
+JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_setParameter
+  (JNIEnv *env, jclass jclazz, jint index, jfloat value, jlong ae) {
+
+  AEffect *effect = (AEffect *)ae;
+  effect->setParameter(effect, index, value);
+}
+
+JNIEXPORT jfloat JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_getParameter
+  (JNIEnv *env, jclass jclazz, jint index, jlong ae) {
+
+  AEffect *effect = (AEffect *)ae;
+  return effect->getParameter(effect, index);
+}
+
+JNIEXPORT jstring JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_getEffectName
+  (JNIEnv *env, jclass jclazz, jlong ae) {
+  
+  AEffect *effect = (AEffect *)ae;
+  char *name = (char *)malloc(sizeof(char) * kVstMaxEffectNameLen);
+  effect->dispatcher (effect, effGetEffectName, 0, 0, name, 0);
+  jstring jname = env->NewStringUTF(name);
+  free(name);
+  return jname;
+}
+
+JNIEXPORT jstring JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_getParameterName
+  (JNIEnv *env, jclass jclazz, jint index, jlong ae) {
+
+  AEffect *effect = (AEffect *)ae;
+  char *name = (char *)malloc(sizeof(char) * kVstMaxParamStrLen);
+  effect->dispatcher (effect, effGetParamName, index, 0, name, 0);
+  jstring jname = env->NewStringUTF(name);
+  free(name);
+  return jname;
+}
+
+JNIEXPORT jstring JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_getVendorName
+  (JNIEnv *env, jclass jclazz, jlong ae) {
+
+  AEffect *effect = (AEffect *)ae;
+  char *name = (char *)malloc(sizeof(char) * kVstMaxVendorStrLen);
+  effect->dispatcher (effect, effGetVendorString, 0, 0, name, 0);
+  jstring jname = env->NewStringUTF(name);
+  free(name);
+  return jname;
+}
+
+JNIEXPORT jstring JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_getProductString
+  (JNIEnv *env, jclass jclazz, jlong ae) {
+
+  AEffect *effect = (AEffect *)ae;
+  char *name = (char *)malloc(sizeof(char) * kVstMaxProductStrLen);
+  effect->dispatcher (effect, effGetProductString, 0, 0, name, 0);
+  jstring jname = env->NewStringUTF(name);
+  free(name);
+  return jname;
+}
+
+JNIEXPORT jint JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_numParameters
+  (JNIEnv *env, jclass jclazz, jlong ae) {
+  
+  return ((AEffect *)ae)->numParams;
+}
+
+JNIEXPORT jint JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_numInputs
+  (JNIEnv *env, jclass jclazz, jlong ae) {
+  
+  return ((AEffect *)ae)->numInputs;
+}
+
+JNIEXPORT jint JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_numOutputs
+  (JNIEnv *env, jclass jclazz, jlong ae) {
+  
+  return ((AEffect *)ae)->numOutputs;
+}
+
+JNIEXPORT jint JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_numPrograms
+(JNIEnv *env, jclass jclazz, jlong ae) {
+  
+  return ((AEffect *)ae)->numPrograms;
+}
+
+JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_setSampleRate
+  (JNIEnv *env, jclass jclazz, jfloat sampleRate, jlong ae) {
+  
+  AEffect *effect = (AEffect *)ae;
+  ((hostLocalVars *) effect->resvd1)->sampleRate = sampleRate;
+  effect->dispatcher (effect, effSetSampleRate, 0, 0, 0, sampleRate);
+}
+
+JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_setBlockSize
+  (JNIEnv *env, jclass jclazz, jint blockSize, jlong ae) {
+  
+  AEffect *effect = (AEffect *)ae;
+  ((hostLocalVars *) effect->resvd1)->blockSize = blockSize;
+  effect->dispatcher (effect, effSetBlockSize, 0, blockSize, 0, 0);
+}
+
+JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_suspend
+  (JNIEnv *env, jclass jclazz, jlong ae) {
+
+  AEffect *effect = (AEffect *)ae;
+  effect->dispatcher (effect, effMainsChanged, 0, 0, 0, 0);
+}
+
+JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_resume
+  (JNIEnv *env, jclass jclazz, jlong ae) {
+
+  AEffect *effect = (AEffect *)ae;
+  effect->dispatcher (effect, effMainsChanged, 0, 1, 0, 0);
+}
+
+JNIEXPORT jstring JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_getProgramName
+  (JNIEnv *env, jclass jclazz, jlong ae) {
 
   AEffect *effect = (AEffect *)ae;
   char *name = (char *)malloc(sizeof(char) * kVstMaxProgNameLen);
@@ -1077,8 +1241,8 @@ JNIEXPORT jstring JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_getProgramN
  * from the given pointer. But the java function will not necessarily return a pointer to an array
  * that long. This would cause the plugin to copy too much, which is dangerous
  */
-JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_setProgramName
-  (JNIEnv *env, jobject jobj, jstring jname, jlong ae) {
+JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_setProgramName
+  (JNIEnv *env, jclass jclazz, jstring jname, jlong ae) {
 
   return;
 /*
@@ -1089,23 +1253,23 @@ JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_setProgramName
 */
 }
 
-JNIEXPORT jint JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_getProgram
-  (JNIEnv *env, jobject jobj, jlong ae) {
+JNIEXPORT jint JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_getProgram
+  (JNIEnv *env, jclass jclazz, jlong ae) {
 
   AEffect *effect = (AEffect *)ae;
   return effect->dispatcher (effect, effGetProgram, 0, 0, 0, 0);
 }
 
 
-JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_setProgram
-  (JNIEnv *env, jobject jobj, jint index, jlong ae) {
+JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_setProgram
+  (JNIEnv *env, jclass jclazz, jint index, jlong ae) {
 
   AEffect *effect = (AEffect *)ae;
   effect->dispatcher (effect, effSetProgram, 0, index, 0, 0);
 }
 
-JNIEXPORT jstring JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_getParameterDisplay
-  (JNIEnv *env, jobject jobj, jint index, jlong ae) {
+JNIEXPORT jstring JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_getParameterDisplay
+  (JNIEnv *env, jclass jclazz, jint index, jlong ae) {
 
   AEffect *effect = (AEffect *)ae;
   char *name = (char *)malloc(sizeof(char) * kVstMaxParamStrLen);
@@ -1115,8 +1279,8 @@ JNIEXPORT jstring JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_getParamete
   return jname;
 }
 
-JNIEXPORT jstring JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_getParameterLabel
-  (JNIEnv *env, jobject jobj, jint index, jlong ae) {
+JNIEXPORT jstring JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_getParameterLabel
+  (JNIEnv *env, jclass jclazz, jint index, jlong ae) {
 
   AEffect *effect = (AEffect *)ae;
   char *name = (char *)malloc(sizeof(char) * kVstMaxParamStrLen);
@@ -1126,40 +1290,26 @@ JNIEXPORT jstring JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_getParamete
   return jname;
 }
 
-JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_editOpen
-  (JNIEnv *env, jobject jobj, jlong ae) {
-  
-  AEffect *effect = (AEffect *)ae;
-  effect->dispatcher (effect, effEditOpen, 0, 0, 0, 0); // may need a pointer here?
-}
-
-JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_editClose
-  (JNIEnv *env, jobject jobj, jlong ae) {
-
-  AEffect *effect = (AEffect *)ae;
-  effect->dispatcher (effect, effEditClose, 0, 0, 0, 0);
-}
-
-JNIEXPORT jint JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_hasEditor
-  (JNIEnv *env, jobject jobj, jlong ae) {
+JNIEXPORT jint JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_hasEditor
+  (JNIEnv *env, jclass jclazz, jlong ae) {
 
   return (((AEffect *)ae)->flags & effFlagsHasEditor);
 }
 
-JNIEXPORT jint JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_canReplacing
-  (JNIEnv *env, jobject jobj, jlong ae) {
+JNIEXPORT jint JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_canReplacing
+  (JNIEnv *env, jclass jclazz, jlong ae) {
 
   return (((AEffect *)ae)->flags & effFlagsCanReplacing);
 }
 
-JNIEXPORT jint JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_acceptsProgramsAsChunks
-  (JNIEnv *env, jobject jobj, jlong ae) {
+JNIEXPORT jint JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_acceptsProgramsAsChunks
+  (JNIEnv *env, jclass jclazz, jlong ae) {
 
   return (((AEffect *)ae)->flags & effFlagsProgramChunks);
 }
 
-JNIEXPORT jbyteArray JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_getChunk
-  (JNIEnv *env, jobject jobj, jint jBankOrProgram, jlong ae) {
+JNIEXPORT jbyteArray JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_getChunk
+  (JNIEnv *env, jclass jclazz, jint jBankOrProgram, jlong ae) {
  
   AEffect *effect = (AEffect *)ae;
   char *chunkData;
@@ -1178,8 +1328,8 @@ JNIEXPORT jbyteArray JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_getChunk
 }
 
 
-JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_setChunk
-  (JNIEnv *env, jobject jobj, jint jBankOrProgram, jbyteArray jChunkData, jlong ae) {
+JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_setChunk
+  (JNIEnv *env, jclass jclazz, jint jBankOrProgram, jbyteArray jChunkData, jlong ae) {
   
   AEffect *effect = (AEffect *)ae;
   char *chunkData = (char *) env->GetByteArrayElements(jChunkData, NULL);
@@ -1188,68 +1338,69 @@ JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_setChunk
   env->ReleaseByteArrayElements(jChunkData, (jbyte *) chunkData, JNI_ABORT);
 }
 
-JNIEXPORT jint JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_isSynth
-  (JNIEnv *env, jobject jobj, jlong ae) {
+JNIEXPORT jint JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_isSynth
+  (JNIEnv *env, jclass jclazz, jlong ae) {
 
   return (((AEffect *)ae)->flags & effFlagsIsSynth);
 }
 
-JNIEXPORT jint JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_canDoBypass
-  (JNIEnv *env, jobject jobj, jlong ae) {
+JNIEXPORT jint JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_canDo
+  (JNIEnv *env, jclass jclazz, jstring canDoString, jlong ae) {
   
-  using namespace PlugCanDos;
   AEffect *effect = (AEffect *)ae;
-  return (jint) effect->dispatcher(effect, effCanDo, 0, 0, (void *) canDoBypass, 0);
+  const char *canDo = env->GetStringUTFChars(canDoString, NULL);
+  return (jint) effect->dispatcher(effect, effCanDo, 0, 0, (void *) canDo, 0);
+  env->ReleaseStringUTFChars(canDoString, canDo);
 }
 
-JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_setBypass
-  (JNIEnv *env, jobject jobj, jboolean bypass, jlong ae) {
+JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_setBypass
+  (JNIEnv *env, jclass jclazz, jboolean bypass, jlong ae) {
   
   AEffect *effect = (AEffect *)ae;
   effect->dispatcher(effect, effSetBypass, 0, bypass == JNI_TRUE, 0, 0);
 }
 
-JNIEXPORT jint JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_producesSoundInStop
-  (JNIEnv *env, jobject jobj, jlong ae) {
+JNIEXPORT jint JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_producesSoundInStop
+  (JNIEnv *env, jclass jclazz, jlong ae) {
 
   return (((AEffect *)ae)->flags & effFlagsNoSoundInStop);
 }
 
-JNIEXPORT jint JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_getUniqueId
-  (JNIEnv *env, jobject jobj, jlong ae) {
+JNIEXPORT jint JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_getUniqueId
+  (JNIEnv *env, jclass jclazz, jlong ae) {
 
   return (jint) ((AEffect *)ae)->uniqueID;
 }
 
-JNIEXPORT jint JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_getVersion
-  (JNIEnv *env, jobject jobj, jlong ae) {
+JNIEXPORT jint JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_getPluginVersion
+  (JNIEnv *env, jclass jclazz, jlong ae) {
  
-  return  (jint) ((AEffect *)ae)->version;
+  return (jint) ((AEffect *)ae)->version;
 }
 
-JNIEXPORT jint JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_getVstVersion
-  (JNIEnv *env, jobject jobj, jlong ae) {
+JNIEXPORT jint JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_getInitialDelay
+  (JNIEnv *env, jclass jclazz, jlong ae) {
 
   AEffect *effect = (AEffect *)ae;
-  return effect->dispatcher(effect, effGetVstVersion, 0, 0, 0, 0);
+  return  (jint) ((AEffect *)ae)->initialDelay;
 }
 
-JNIEXPORT jint JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_getTailSize
-  (JNIEnv *env, jobject jobj, jlong ae) {
+JNIEXPORT jint JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_getTailSize
+  (JNIEnv *env, jclass jclazz, jlong ae) {
  
   AEffect *effect = (AEffect *)ae;
   return effect->dispatcher(effect, effGetTailSize, 0, 0, 0, 0);
 }
 
-JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_startProcess
-  (JNIEnv *env, jobject jobj, jlong ae) {
+JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost23_startProcess
+  (JNIEnv *env, jclass jclazz, jlong ae) {
  
   AEffect *effect = (AEffect *)ae;
   effect->dispatcher(effect, effStartProcess, 0, 0, 0, 0);
 }
 
-JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_JVstHost_stopProcess
-  (JNIEnv *env, jobject jobj, jlong ae) {
+JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost23_stopProcess
+  (JNIEnv *env, jclass jclazz, jlong ae) {
  
   AEffect *effect = (AEffect *)ae;
   effect->dispatcher(effect, effStopProcess, 0, 0, 0, 0);

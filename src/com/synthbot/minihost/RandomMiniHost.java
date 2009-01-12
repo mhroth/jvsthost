@@ -1,6 +1,6 @@
 /*
- *  Copyright 2007, 2008 Martin Roth (mhroth@gmail.com)
- *                       Matthew Yee-King
+ *  Copyright 2007 - 2009 Martin Roth (mhroth@gmail.com)
+ *                        Matthew Yee-King
  * 
  *  This file is part of JVstHost.
  *
@@ -22,8 +22,9 @@
 package com.synthbot.minihost;
 
 import com.synthbot.audioio.vst.JVstAudioThread;
-import com.synthbot.audioplugin.vst.JVstHost;
 import com.synthbot.audioplugin.vst.JVstLoadException;
+import com.synthbot.audioplugin.vst.vst2.JVstHost2;
+
 import java.io.File;
 import javax.sound.midi.ShortMessage;
 import javax.sound.midi.InvalidMidiDataException;
@@ -39,7 +40,7 @@ public class RandomMiniHost   {
 
   private static final float sampleRate = 44100f;
   private static final int blockSize = 8912;
-  private JVstHost vst;
+  private JVstHost2 vst;
   private JVstAudioThread audioThread;
 
   private int channel = 0;
@@ -48,7 +49,7 @@ public class RandomMiniHost   {
   public RandomMiniHost(File vstFile) {
     vst = null;
     try {
-      vst = new JVstHost(vstFile, sampleRate, blockSize);
+      vst = JVstHost2.newInstance(vstFile, sampleRate, blockSize);
     } catch (JVstLoadException jvle) {
       jvle.printStackTrace(System.err);
       System.exit(1);
@@ -61,7 +62,6 @@ public class RandomMiniHost   {
 
     // create a midi note on message
     ShortMessage midiMessage = new ShortMessage();
-    ShortMessage[] midiMessages = {midiMessage};
     
     // play a random note every 1000ms for 1000ms
     try {
@@ -70,11 +70,11 @@ public class RandomMiniHost   {
 
         Thread.sleep(1000);
         midiMessage.setMessage(ShortMessage.NOTE_ON, channel, note, velocity);
-        vst.setMidiEvents(midiMessages);
+        vst.queueMidiMessage(midiMessage);
 
         Thread.sleep(1000);
         midiMessage.setMessage(ShortMessage.NOTE_OFF, channel, note, 0);
-        vst.setMidiEvents(midiMessages);
+        vst.queueMidiMessage(midiMessage);
 
       }
     } catch (InvalidMidiDataException imde) {

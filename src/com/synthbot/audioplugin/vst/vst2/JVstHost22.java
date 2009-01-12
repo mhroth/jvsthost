@@ -19,21 +19,21 @@
  *
  */
 
-package com.synthbot.audioplugin.vst;
+package com.synthbot.audioplugin.vst.vst2;
 
-/**
- * This Exception is thrown when a VST cannot be loaded via the native method.
- */
-public class JVstLoadException extends Exception {
+import java.io.File;
 
-  static final long serialVersionUID = 0L;
-  
-  public JVstLoadException(Throwable cause) {
-    super(cause);
+import com.synthbot.audioplugin.vst.VstVersion;
+
+public class JVstHost22 extends JVstHost21 {
+
+  protected JVstHost22(File pluginFile, long pluginPtr) {
+    super(pluginFile, pluginPtr);
   }
   
-  public JVstLoadException(String message) {
-    super(message);
+  @Override
+  public VstVersion getVstVersion() {
+    return VstVersion.VST22;
   }
   
 }
