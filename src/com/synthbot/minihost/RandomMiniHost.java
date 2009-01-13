@@ -75,7 +75,6 @@ public class RandomMiniHost   {
         Thread.sleep(1000);
         midiMessage.setMessage(ShortMessage.NOTE_OFF, channel, note, 0);
         vst.queueMidiMessage(midiMessage);
-
       }
     } catch (InvalidMidiDataException imde) {
       imde.printStackTrace(System.err);
