@@ -11,4 +11,4 @@ JVstHost.cpp \
 ls -l jvsthost2.dll
 echo copying jvsthost2.dll to C:/WINDOWS/system32
 cp jvsthost2.dll /cygdrive/c/WINDOWS/system32
-mv jvsthost2.dll ../../../../../
+mv jvsthost2.dll ../../../../../../
