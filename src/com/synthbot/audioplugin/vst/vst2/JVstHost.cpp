@@ -310,12 +310,17 @@ VstIntPtr VSTCALLBACK HostCallback (AEffect *effect, VstInt32 opcode, VstInt32 i
     // such as by the plugin's own editor
     // called when the plugin calls setParameterAutomated
     case audioMasterAutomate: {
-      env->CallVoidMethod(
-          getCachedCallingObject(effect),
-          vpwAudioMasterAutomate,
-          (jint) index,
-          (jfloat) opt);
-      return 1;
+      jobject jobj = getCachedCallingObject(effect);
+      if (jobj == NULL) {
+        return 0;
+      } else {
+        env->CallVoidMethod(
+            jobj,
+            vpwAudioMasterAutomate,
+            (jint) index,
+            (jfloat) opt);
+        return 1;
+      }
     }
     
     // Host VST version
@@ -353,14 +358,14 @@ VstIntPtr VSTCALLBACK HostCallback (AEffect *effect, VstInt32 opcode, VstInt32 i
     case audioMasterGetTime: {
       VstTimeInfo *vti = ((hostLocalVars *) effect->resvd1)->vti;
       vti->samplePos = 0.0;
-      vti->sampleRate = (double) ((hostLocalVars *) effect->resvd1)->sampleRate; // HostCallback(effect, audioMasterGetSampleRate, 0, NULL, NULL, 0.0);
+      vti->sampleRate = (double) ((hostLocalVars *) effect->resvd1)->sampleRate;
       vti->flags = 0;
       if (value & kVstNanosValid != 0) { // bit 8
         // Live returns this...
         //vti->nanoSeconds = 0.0;
         //vti->flags |= kVstNanosValid;
       }
-      if (value & kVstPpqPosValid != 0) { // bit 9        
+      if (value & kVstPpqPosValid != 0) { // bit 9
         //vti->ppqPos = (vti->samplePos/vti->sampleRate) * (TEMPO_BPM/60.0);
         vti->ppqPos = 0.0;
         vti->flags |= kVstPpqPosValid;
@@ -408,47 +413,60 @@ VstIntPtr VSTCALLBACK HostCallback (AEffect *effect, VstInt32 opcode, VstInt32 i
      * NOTE: less information is being passed up than is available in the VstMidiEvent structure.
      */
     case audioMasterProcessEvents: {
-      VstEvents *vstes = (VstEvents *)ptr;
-      VstEvent *vste;
-      VstMidiEvent *vstme;
-      VstMidiSysexEvent *vstmse;
-      
-      for (int i = 0; i < vstes->numEvents; i++) {
-        vste = vstes->events[i];
-        switch (vste->type) {
-          case kVstMidiType: {
-            vstme = (VstMidiEvent *)vste;
-            env->CallVoidMethod(
-                getCachedCallingObject(effect),
-                vpwAudioMasterProcessMidiEvents, 
-                ((jint) vstme->midiData[0]) & 0x000000F0,
-                ((jint) vstme->midiData[0]) & 0x0000000F,
-                ((jint) vstme->midiData[1]) & 0x000000FF,
-                ((jint) vstme->midiData[2]) & 0x000000FF);
-            break;
-          }
-          case kVstSysExType: {
-            // not handling this case at the moment
-            break;
+      jobject jobj = getCachedCallingObject(effect);
+      if (jobj == NULL) {
+        return 0;
+      } else {
+        VstEvents *vstes = (VstEvents *)ptr;
+        VstEvent *vste;
+        VstMidiEvent *vstme;
+        VstMidiSysexEvent *vstmse;
+        
+        for (int i = 0; i < vstes->numEvents; i++) {
+          vste = vstes->events[i];
+          switch (vste->type) {
+            case kVstMidiType: {
+              vstme = (VstMidiEvent *)vste;
+              env->CallVoidMethod(
+                  jobj,
+                  vpwAudioMasterProcessMidiEvents, 
+                  ((jint) vstme->midiData[0]) & 0x000000F0,
+                  ((jint) vstme->midiData[0]) & 0x0000000F,
+                  ((jint) vstme->midiData[1]) & 0x000000FF,
+                  ((jint) vstme->midiData[2]) & 0x000000FF);
+              break;
+            }
+            case kVstSysExType: {
+              // not handling this case at the moment
+              break;
+            }
           }
         }
+        return 1;
       }
-    
-      return 1;
     }
     
     case audioMasterIOChanged: {
-     freeHostLocalArrays(effect);
-     initHostLocalArrays(effect); // reinitialise the arrays with the new numInputs and numOutputs
-             
-      env->CallVoidMethod(
-          getCachedCallingObject(effect),
-          vpwAudioMasterIoChanged,
-          effect->numInputs,
-          effect->numOutputs,
-          effect->initialDelay,
-          effect->numParams);
-      return 1;
+      jobject jobj = getCachedCallingObject(effect);
+      if (jobj == NULL) {
+        return 0;
+      } else {
+        env->MonitorEnter(jobj);
+  
+        freeHostLocalArrays(effect);
+        initHostLocalArrays(effect); // reinitialise the arrays with the new numInputs and numOutputs
+               
+        env->CallVoidMethod(
+            jobj,
+            vpwAudioMasterIoChanged,
+            effect->numInputs,
+            effect->numOutputs,
+            effect->initialDelay,
+            effect->numParams);
+  
+        env->MonitorExit(jobj);
+        return 1;
+      }
     }
     
     // [index]: new width [value]: new height [return value]: 1 if supported
@@ -564,6 +582,32 @@ VstIntPtr VSTCALLBACK HostCallback (AEffect *effect, VstInt32 opcode, VstInt32 i
     
     case audioMasterUpdateDisplay: {
       return 0;
+    }
+    
+    case audioMasterBeginEdit: {
+      jobject jobj = getCachedCallingObject(effect);
+      if (jobj == NULL) {
+        return 0;
+      } else {
+        env->CallVoidMethod(
+            jobj,
+            vpwAudioMasterBeginEdit,
+            (jint) index);
+        return 1;
+      }
+    }
+    
+    case audioMasterEndEdit: {
+      jobject jobj = getCachedCallingObject(effect);
+      if (jobj == NULL) {
+        return 0;
+      } else {
+        env->CallVoidMethod(
+            jobj,
+            vpwAudioMasterEndEdit,
+            (jint) index);
+        return 1;
+      }
     }
     
     default: {
