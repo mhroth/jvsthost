@@ -44,6 +44,8 @@ import com.synthbot.audioplugin.vst.view.JVstViewListener;
  * Most methods in this and subclasses will check to make sure that the native library is loaded
  * before executing any native code. If a method is called and the native library is not loaded,
  * then an <code>IllegalStateException</code> will be thrown.
+ * 
+ * All public methods of JVstHost2 and its subclasses are synchronized. They are thread-safe.
  *
  */
 public abstract class JVstHost2 implements JVstViewListener {
@@ -334,12 +336,14 @@ public abstract class JVstHost2 implements JVstViewListener {
   public abstract int getBlockSize();
   
   /**
-   * 
+   * Suspends the operation of the plugin. If this method is called while the plugin is
+   * already suspended, it does nothing.
    */
   public abstract void suspend();
   
   /**
-   * 
+   * Resumes the operation of the plugin. If the method is called while the plugin is
+   * already resumed, it does nothing.
    */
   public abstract void resume();
   

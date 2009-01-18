@@ -40,7 +40,7 @@ public class JVstHost20 extends JVstHost2 {
   protected int blockSize; // the last maximum blockSize to which the plugin was set
   protected final boolean canProcessReplacing;
   protected final boolean hasNativeEditor;
-  protected boolean isSuspended;
+  protected boolean isSuspended; // analogous to "isTurnedOff"
   
   protected final List<ShortMessage> queuedMidiMessages;
   
@@ -179,15 +179,19 @@ public class JVstHost20 extends JVstHost2 {
   @Override
   public void suspend() {
     assertNativeComponentIsLoaded();
-    suspend(vstPluginPtr);
-    isSuspended = true;
+    if (!isSuspended) {
+      suspend(vstPluginPtr);
+      isSuspended = true;      
+    }
   }
   
   @Override
   public void resume() {
     assertNativeComponentIsLoaded();
-    resume(vstPluginPtr);
-    isSuspended = false;
+    if (isSuspended) {
+      resume(vstPluginPtr);
+      isSuspended = false;      
+    }
   }
   protected static native void resume(long pluginPtr);
   

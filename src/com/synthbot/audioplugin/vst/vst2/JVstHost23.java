@@ -38,14 +38,14 @@ public class JVstHost23 extends JVstHost22 {
   
   @Override
   public synchronized void turnOn() {
-    resume();
+    super.turnOn();
     startProcess();
   }
   
   @Override
   public synchronized void turnOff() {
     stopProcess();
-    suspend();
+    super.turnOff();
   }
   
   /**
