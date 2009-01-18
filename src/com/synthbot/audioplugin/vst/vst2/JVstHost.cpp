@@ -64,24 +64,41 @@ typedef struct hostLocalVars {
   int blockSize;
 };
 
-void initHostLocalArrays(AEffect *effect) {
-  ((hostLocalVars *) effect->resvd1)->fInputs = (float **) malloc(sizeof(float *) * effect->numInputs);
-  ((hostLocalVars *) effect->resvd1)->fOutputs = (float **) malloc(sizeof(float *) * effect->numOutputs);
-  if (effect->flags & effFlagsCanDoubleReplacing) {
-    ((hostLocalVars *) effect->resvd1)->dInputs = (double **) malloc(sizeof(double *) * effect->numInputs);
-    ((hostLocalVars *) effect->resvd1)->dOutputs = (double **) malloc(sizeof(double *) * effect->numOutputs);
+/**
+ * Can be extended in the future if we find that resvd1 is being overwritten by some plugins.
+ */
+bool isHostLocalVarsValid(AEffect *effect) {
+  if (effect != NULL) {
+    return (effect->resvd1 != 0);
   } else {
-    ((hostLocalVars *) effect->resvd1)->dInputs = 0;
-    ((hostLocalVars *) effect->resvd1)->dOutputs = 0;
+    return false;
+  }
+}
+
+void initHostLocalArrays(AEffect *effect) {
+  if (isHostLocalVarsValid(effect)) {
+    hostLocalVars *hostVars = (hostLocalVars *) effect->resvd1;
+    hostVars->fInputs = (float **) malloc(sizeof(float *) * effect->numInputs);
+    hostVars->fOutputs = (float **) malloc(sizeof(float *) * effect->numOutputs);
+    if (effect->flags & effFlagsCanDoubleReplacing) {
+      hostVars->dInputs = (double **) malloc(sizeof(double *) * effect->numInputs);
+      hostVars->dOutputs = (double **) malloc(sizeof(double *) * effect->numOutputs);
+    } else {
+      hostVars->dInputs = 0;
+      hostVars->dOutputs = 0;
+    }
   }
 }
 
 void freeHostLocalArrays(AEffect *effect) {
-  free(((hostLocalVars *) effect->resvd1)->fInputs);
-  free(((hostLocalVars *) effect->resvd1)->fOutputs);
-  if (effect->flags & effFlagsCanDoubleReplacing) {
-    free(((hostLocalVars *) effect->resvd1)->dInputs);
-    free(((hostLocalVars *) effect->resvd1)->dOutputs);
+  if (isHostLocalVarsValid(effect)) {
+    hostLocalVars *hostVars = (hostLocalVars *) effect->resvd1;
+    free(hostVars->fInputs);
+    free(hostVars->fOutputs);
+    if (effect->flags & effFlagsCanDoubleReplacing) {
+      free(hostVars->dInputs);
+      free(hostVars->dOutputs);
+    }
   }
 }
 
@@ -717,27 +734,36 @@ JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost2_unloadPl
   (JNIEnv *env, jclass jclazz, jlong ae) {
   
   if (ae != 0) {
+  
     AEffect *effect = (AEffect *)ae;
     
-    void *libPtr = ((hostLocalVars *) effect->resvd1)->libPtr;
+    if (isHostLocalVarsValid(effect)) {
+      hostLocalVars *hostVars = (hostLocalVars *) effect->resvd1;
+      void *libPtr = hostVars->libPtr;
+      if (hostVars->jVstHost2 != 0) {
+        env->DeleteWeakGlobalRef(hostVars->jVstHost2);
+      }
+      freeHostLocalArrays(effect);
+      if (hostVars->vti != 0) {
+        free(hostVars->vti);
+      }
+      
+      // close the plugin
+      effect->dispatcher (effect, effClose, 0, 0, 0, 0);
     
-    // free the host local variables
-    env->DeleteWeakGlobalRef(((hostLocalVars *) effect->resvd1)->jVstHost2);
-    freeHostLocalArrays(effect);
-    free(((hostLocalVars *) effect->resvd1)->vti);
-    free((hostLocalVars *) effect->resvd1);
-    
-    // close the plugin
-    effect->dispatcher (effect, effClose, 0, 0, 0, 0);
-    
-    // close the library from which the plugin was loaded
-    #if _WIN32
-      FreeLibrary((HMODULE) libPtr);
-    #elif TARGET_API_MAC_CARBON
-      CFRelease((CFBundleRef)libPtr);
-    #else
-      dlclose(libPtr);
-    #endif
+      // close the library from which the plugin was loaded
+      if (libPtr != 0) {
+        #if _WIN32
+          FreeLibrary((HMODULE) libPtr);
+        #elif TARGET_API_MAC_CARBON
+          CFRelease((CFBundleRef)libPtr);
+        #else
+          dlclose(libPtr);
+        #endif
+      }
+    } else {
+      effect->dispatcher (effect, effClose, 0, 0, 0, 0);
+    }
   }
 }
 
