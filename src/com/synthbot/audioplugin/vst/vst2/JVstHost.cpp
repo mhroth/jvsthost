@@ -130,7 +130,11 @@ JNIEXPORT void JNICALL JNI_OnUnload(JavaVM *jvm, void *reserved) {
 }
 
 jobject getCachedCallingObject(AEffect *effect) {
-  return ((hostLocalVars *) effect->resvd1)->jVstHost2;
+  if (isHostLocalVarsValid(effect)) {
+    return ((hostLocalVars *) effect->resvd1)->jVstHost2;
+  } else {
+    return NULL;
+  }
 }
 
 void opcode2string(VstInt32 opcode, VstIntPtr value, JNIEnv *env) {
