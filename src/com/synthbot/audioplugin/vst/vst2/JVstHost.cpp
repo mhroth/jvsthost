@@ -585,6 +585,7 @@ VstIntPtr VSTCALLBACK HostCallback (AEffect *effect, VstInt32 opcode, VstInt32 i
     }
     
     case audioMasterBeginEdit: {
+      /*
       jobject jobj = getCachedCallingObject(effect);
       if (jobj == NULL) {
         return 0;
@@ -595,9 +596,12 @@ VstIntPtr VSTCALLBACK HostCallback (AEffect *effect, VstInt32 opcode, VstInt32 i
             (jint) index);
         return 1;
       }
+      */
+      return 0;
     }
     
     case audioMasterEndEdit: {
+      /*
       jobject jobj = getCachedCallingObject(effect);
       if (jobj == NULL) {
         return 0;
@@ -608,6 +612,8 @@ VstIntPtr VSTCALLBACK HostCallback (AEffect *effect, VstInt32 opcode, VstInt32 i
             (jint) index);
         return 1;
       }
+      */
+      return 0;
     }
     
     default: {
