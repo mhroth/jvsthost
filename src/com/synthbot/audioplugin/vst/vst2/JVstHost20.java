@@ -40,7 +40,7 @@ public class JVstHost20 extends JVstHost2 {
   protected int blockSize; // the last maximum blockSize to which the plugin was set
   protected final boolean canProcessReplacing;
   protected final boolean hasNativeEditor;
-  protected boolean isSuspended; // analogous to "isTurnedOff"
+  protected boolean isTurnedOff;
   
   protected final List<ShortMessage> queuedMidiMessages;
   
@@ -56,7 +56,7 @@ public class JVstHost20 extends JVstHost2 {
     numPrograms = numPrograms(); // this value seems never to be changed
     canProcessReplacing = (canReplacing(pluginPtr) != 0);
     hasNativeEditor = (hasEditor(vstPluginPtr) != 0);
-    isSuspended = true;
+    isTurnedOff = true;
     
     queuedMidiMessages = new ArrayList<ShortMessage>();
     
@@ -72,9 +72,15 @@ public class JVstHost20 extends JVstHost2 {
   /**
    * @throws IllegalStateException  Thrown if the plugin is currently not suspended.
    */
-  protected synchronized void assertIsSuspended() {
-    if (!isSuspended) {
-      throw new IllegalStateException("The plugin must be suspended in order to perform this operation.");
+  protected void assertIsTurnedOff() {
+    if (!isTurnedOff) {
+      throw new IllegalStateException("The plugin must be turned off in order to perform this operation.");
+    }
+  }
+  
+  protected void assertIsTurnedOn() {
+    if (isTurnedOff) {
+      throw new IllegalStateException("The plugin must be turned on in order to perform this operation.");
     }
   }
   
@@ -175,25 +181,6 @@ public class JVstHost20 extends JVstHost2 {
     process(messages, inputs, outputs, blockSize, vstPluginPtr);
   }
   protected static native void process(ShortMessage[] messages, float[][] inputs, float[][] outputs, int blockSize, long pluginPtr);
-  
-  @Override
-  public void suspend() {
-    assertNativeComponentIsLoaded();
-    if (!isSuspended) {
-      suspend(vstPluginPtr);
-      isSuspended = true;      
-    }
-  }
-  
-  @Override
-  public void resume() {
-    assertNativeComponentIsLoaded();
-    if (isSuspended) {
-      resume(vstPluginPtr);
-      isSuspended = false;      
-    }
-  }
-  protected static native void resume(long pluginPtr);
   
   @Override
   public synchronized boolean canDo(VstPluginCanDo canDo) {
@@ -306,7 +293,7 @@ public class JVstHost20 extends JVstHost2 {
   
   @Override
   public synchronized void setSampleRate(float sampleRate) {
-    assertIsSuspended();
+    assertIsTurnedOff();
     assertNativeComponentIsLoaded();
     if (sampleRate <= 0f) {
       throw new IllegalArgumentException("Sample rate must be positive: " + sampleRate);
@@ -323,7 +310,7 @@ public class JVstHost20 extends JVstHost2 {
   
   @Override
   public synchronized void setBlockSize(int blockSize) throws IllegalArgumentException {
-    assertIsSuspended();
+    assertIsTurnedOff();
     assertNativeComponentIsLoaded();
     if (blockSize <= 0) {
       throw new IllegalArgumentException("Blocks size must be positive: " + blockSize);
@@ -447,12 +434,19 @@ public class JVstHost20 extends JVstHost2 {
   
   @Override
   public synchronized void turnOn() {
-    resume();
+    if (isTurnedOff) {
+      resume(vstPluginPtr);
+      isTurnedOff = false;
+    }
   }
+  protected static native void resume(long pluginPtr);
   
   @Override
   public synchronized void turnOff() {
-    suspend();
+    if (!isTurnedOff) {
+      suspend(vstPluginPtr);
+      isTurnedOff = true;
+    }
   }
   protected static native void suspend(long pluginPtr);
   

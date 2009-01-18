@@ -310,7 +310,7 @@ public abstract class JVstHost2 implements JVstViewListener {
    * Set the sample rate at which the plugin should process the audio.
    * @param sampleRate  The new sample rate.
    * @throws IllegalArgumentException  Thrown if the new sample rate is non-positive.
-   * @throws IllegalStateException  Thrown if the plugin is not suspended.
+   * @throws IllegalStateException  Thrown if the plugin is turned on.
    */
   public abstract void setSampleRate(float sampleRate);
   
@@ -325,7 +325,7 @@ public abstract class JVstHost2 implements JVstViewListener {
    * The block size can be made smaller when calling processReplacing().
    * @param blockSize  The new block size.
    * @throws IllegalArgumentException  Thrown in the block size is negative.
-   * @throws IllegalStateException  Thrown if the plugin is not suspended.
+   * @throws IllegalStateException  Thrown if the plugin is turned on.
    */
   public abstract void setBlockSize(int blockSize);
   
@@ -334,18 +334,6 @@ public abstract class JVstHost2 implements JVstViewListener {
    * @return  The last block size to which the plugin was set.
    */
   public abstract int getBlockSize();
-  
-  /**
-   * Suspends the operation of the plugin. If this method is called while the plugin is
-   * already suspended, it does nothing.
-   */
-  public abstract void suspend();
-  
-  /**
-   * Resumes the operation of the plugin. If the method is called while the plugin is
-   * already resumed, it does nothing.
-   */
-  public abstract void resume();
   
   /**
    * Returns the initial plugin audio processing delay in samples.
@@ -421,13 +409,16 @@ public abstract class JVstHost2 implements JVstViewListener {
   }
   
   /**
-   * Ensure that the plugin is initialised and ready to process.
+   * Ensure that the plugin is initialised and ready to process. Plugins must be
+   * turned on in order to process audio or midi events. Successive invocations of
+   * this method have no effect.
    */
   public abstract void turnOn();
   
   /**
    * Suspend the plugin's operation. Plugins must usually be turned off in order
-   * to set critical parameters such as sample rate or block size. 
+   * to set critical parameters such as sample rate or block size. Successive invocations
+   * of this method have no effect.
    */
   public abstract void turnOff();
   

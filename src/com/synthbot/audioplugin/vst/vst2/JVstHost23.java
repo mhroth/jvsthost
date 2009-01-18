@@ -38,30 +38,24 @@ public class JVstHost23 extends JVstHost22 {
   
   @Override
   public synchronized void turnOn() {
-    super.turnOn();
-    startProcess();
+    if (isTurnedOff) {
+      resume(vstPluginPtr);
+      startProcess(vstPluginPtr);
+      isTurnedOff = false;
+    }
   }
   
   @Override
   public synchronized void turnOff() {
-    stopProcess();
-    super.turnOff();
+    if (!isTurnedOff) {
+      stopProcess(vstPluginPtr);
+      suspend(vstPluginPtr);
+      isTurnedOff = true;
+    }
   }
   
-  /**
-   * Called one time before the start of process call. This indicates that the process call will be interrupted.
-   */
-  public synchronized void startProcess() {
-    startProcess(vstPluginPtr);
-  }
   protected static native void startProcess(long pluginPtr);
   
-  /**
-   * Called after the stop of process call.
-   */
-  public synchronized void stopProcess() {
-    stopProcess(vstPluginPtr);
-  }
   protected static native void stopProcess(long pluginPtr);
   
 }
