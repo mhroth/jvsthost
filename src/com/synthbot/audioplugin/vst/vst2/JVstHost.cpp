@@ -788,7 +788,6 @@ JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost2_unloadPl
   (JNIEnv *env, jclass jclazz, jlong ae) {
   
   if (ae != 0) {
-  
     AEffect *effect = (AEffect *)ae;
     
     if (isHostLocalVarsValid(effect)) {
@@ -801,10 +800,12 @@ JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost2_unloadPl
       if (hostVars->vti != 0) {
         free(hostVars->vti);
       }
+      free(hostVars);
+      effect->resvd1 = NULL;
       
       // close the plugin
       effect->dispatcher (effect, effClose, 0, 0, 0, 0);
-    
+      
       // close the library from which the plugin was loaded
       if (libPtr != 0) {
         #if _WIN32

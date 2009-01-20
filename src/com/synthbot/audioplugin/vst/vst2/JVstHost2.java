@@ -134,6 +134,11 @@ public abstract class JVstHost2 implements JVstViewListener {
     System.loadLibrary("jvsthost2");
   }
   
+  @Override
+  public String toString() {
+    return getEffectName() + "@0x" + Long.toHexString(vstPluginPtr); 
+  }
+  
   /**
    * Indicates if the native component of the plugin is loaded. Any use of the 
    * JVstHost2 object while the plugin is not loaded will throw an <code>IllegalStateException</code>.
