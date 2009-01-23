@@ -40,8 +40,8 @@ import javax.sound.midi.InvalidMidiDataException;
  */
 public class RandomMiniHost   {
 
-  private static final float sampleRate = 44100f;
-  private static final int blockSize = 8912;
+  private static final float SAMPLE_RATE = 44100f;
+  private static final int BLOCK_SIZE = 8912;
   private JVstHost2 vst;
   private JVstAudioThread audioThread;
 
