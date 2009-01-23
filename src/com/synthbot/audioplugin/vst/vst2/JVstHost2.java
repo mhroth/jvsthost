@@ -66,11 +66,15 @@ public abstract class JVstHost2 implements JVstViewListener {
    * @param file  The location of the native plugin library.
    * @param sampleRate  The sample rate at which the plugin should operate.
    * @param blockSize  The maximum size of an audio block
-   * @return A new instance of a JVstHost2 subclass corresponding to the plugin's vst version.
+   * @return A new instance of a <code>JVstHost2</code> subclass corresponding to the plugin's vst version.
+   * @throws FileNotFoundException  Thrown if the given VST File does not exist.
+   * @throws IllegalArgumentException  Thrown if the supplied sample rate or block size exceed their allowed values.
+   * See <code>setSampleRate</code> and <code>setBlockSize</code>.
    * @throws JVstLoadException  Thrown if there are any errors while loading the native VST.
-   * Use <code>JVstLoadException.getMessage</code> to retrieve the cause.
+   * @throws NullPointerException  Thrown if the given VST File is null.
+   * @throws For more information on exceptions, see <a href="http://github.com/mhroth/jvsthost/wikis/micro-blog/#fn3">http://github.com/mhroth/jvsthost/wikis/micro-blog/</a>
    */
-  public static JVstHost2 newInstance(File file, float sampleRate, int blockSize) throws JVstLoadException {
+  public static JVstHost2 newInstance(File file, float sampleRate, int blockSize) throws FileNotFoundException, JVstLoadException {
     JVstHost2 vst = newInstance(file);
     vst.setSampleRate(sampleRate);
     vst.setBlockSize(blockSize);
@@ -83,13 +87,18 @@ public abstract class JVstHost2 implements JVstViewListener {
    * only initialised, and not started, nor supplied with necessary information, such as sample rate
    * or block size.
    * @param file  The location of the native plugin library.
-   * @return A new instance of a JVstHost2 subclass corresponding to the plugin's vst version.
+   * @return A new instance of a <code>JVstHost2</code> subclass corresponding to the plugin's vst version.
+   * @throws FileNotFoundException  Thrown if the given VST File does not exist.
    * @throws JVstLoadException  Thrown if there are any errors while loading the native VST.
-   * Use JVstLoadException.getMessage() to retrieve the cause.
+   * @throws NullPointerException  Thrown if the given VST File is null.
+   * @throws For more information on exceptions, see <a href="http://github.com/mhroth/jvsthost/wikis/micro-blog/#fn3">http://github.com/mhroth/jvsthost/wikis/micro-blog/</a>
    */
-  public static JVstHost2 newInstance(File file) throws JVstLoadException {
+  public static JVstHost2 newInstance(File file) throws FileNotFoundException, JVstLoadException {
+    if (file == null) {
+      throw new NullPointerException("VST file cannot be null. Specify a non-null File object.");
+    }
     if (!file.exists()) {
-      throw new JVstLoadException(new FileNotFoundException(file.toString()));
+      throw new FileNotFoundException(file.toString());
     }
     long pluginPtr = loadPlugin(file.toString());
     int vstVersionInt = getVstVersion(pluginPtr);
