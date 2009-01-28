@@ -68,10 +68,7 @@ public class JVstHost20 extends JVstHost2 {
    * This reference allows callbacks methods to by easily called to the correct object.
    */
   private native void setThis(long pluginPtr);
-  
-  /**
-   * @throws IllegalStateException  Thrown if the plugin is currently not suspended.
-   */
+
   protected void assertIsTurnedOff() {
     if (!isTurnedOff) {
       throw new IllegalStateException("The plugin must be turned off in order to perform this operation.");
@@ -104,6 +101,7 @@ public class JVstHost20 extends JVstHost2 {
   @Override
   public synchronized void processReplacing(float[][] inputs, float[][] outputs, int blockSize) {
     assertNativeComponentIsLoaded();
+    assertIsTurnedOn();
     if (!canProcessReplacing) {
       throw new IllegalStateException("This plugin does not implement processReplacing().");
     }
@@ -149,6 +147,7 @@ public class JVstHost20 extends JVstHost2 {
   @Override
   public synchronized void process(float[][] inputs, float[][] outputs, int blockSize) {
     assertNativeComponentIsLoaded();
+    assertIsTurnedOn();
     if (inputs == null) {
       throw new NullPointerException("The inputs array is null.");
     } else if (inputs.length < numInputs) {
@@ -452,7 +451,6 @@ public class JVstHost20 extends JVstHost2 {
   
   @Override
   public synchronized void setBankChunk(byte[] chunkData) {
-    assertNativeComponentIsLoaded();
     assertNativeComponentIsLoaded();
     if (chunkData == null) {
       throw new NullPointerException("Chunk data cannot be null.");
