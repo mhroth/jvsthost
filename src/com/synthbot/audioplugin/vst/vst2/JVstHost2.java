@@ -350,6 +350,14 @@ public abstract class JVstHost2 implements JVstViewListener {
   public abstract int getBlockSize();
   
   /**
+   * Set the current tempo in beats per minute (BPM). Some plugins have tempo-based
+   * effects, such as synchronised LFOs, etc. This value will influence their function.
+   * A default value of 120 BPM is used.
+   * @param tempo  The new tempo in beats per minute.
+   */
+  public abstract void setTempo(double tempo);
+  
+  /**
    * Returns the initial plugin audio processing delay in samples.
    * @return  The initial plugin audio processing delay in samples.
    */

@@ -308,6 +308,13 @@ public class JVstHost20 extends JVstHost2 {
   }
   
   @Override
+  public synchronized void setTempo(double tempo) {
+    setTempo(tempo, vstPluginPtr);
+  }
+  protected static native void setTempo(double tempo, long pluginPtr);
+  
+  
+  @Override
   public synchronized void setBlockSize(int blockSize) throws IllegalArgumentException {
     assertIsTurnedOff();
     assertNativeComponentIsLoaded();
