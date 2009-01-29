@@ -41,14 +41,6 @@ JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_process
 
 /*
  * Class:     com_synthbot_audioplugin_vst_vst2_JVstHost20
- * Method:    resume
- * Signature: (J)V
- */
-JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_resume
-  (JNIEnv *, jclass, jlong);
-
-/*
- * Class:     com_synthbot_audioplugin_vst_vst2_JVstHost20
  * Method:    canDo
  * Signature: (Ljava/lang/String;J)I
  */
@@ -161,6 +153,14 @@ JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_setSamp
 
 /*
  * Class:     com_synthbot_audioplugin_vst_vst2_JVstHost20
+ * Method:    setTempo
+ * Signature: (DJ)V
+ */
+JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_setTempo
+  (JNIEnv *, jclass, jdouble, jlong);
+
+/*
+ * Class:     com_synthbot_audioplugin_vst_vst2_JVstHost20
  * Method:    setBlockSize
  * Signature: (IJ)V
  */
@@ -261,6 +261,14 @@ JNIEXPORT jint JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_getPlug
  * Signature: (J)I
  */
 JNIEXPORT jint JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_getInitialDelay
+  (JNIEnv *, jclass, jlong);
+
+/*
+ * Class:     com_synthbot_audioplugin_vst_vst2_JVstHost20
+ * Method:    resume
+ * Signature: (J)V
+ */
+JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_resume
   (JNIEnv *, jclass, jlong);
 
 /*

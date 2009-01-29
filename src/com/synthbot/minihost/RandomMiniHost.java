@@ -26,6 +26,8 @@ import com.synthbot.audioplugin.vst.JVstLoadException;
 import com.synthbot.audioplugin.vst.vst2.JVstHost2;
 
 import java.io.File;
+import java.io.FileNotFoundException;
+
 import javax.sound.midi.ShortMessage;
 import javax.sound.midi.InvalidMidiDataException;
 
@@ -38,8 +40,8 @@ import javax.sound.midi.InvalidMidiDataException;
  */
 public class RandomMiniHost   {
 
-  private static final float sampleRate = 44100f;
-  private static final int blockSize = 8912;
+  private static final float SAMPLE_RATE = 44100f;
+  private static final int BLOCK_SIZE = 8912;
   private JVstHost2 vst;
   private JVstAudioThread audioThread;
 
@@ -49,7 +51,10 @@ public class RandomMiniHost   {
   public RandomMiniHost(File vstFile) {
     vst = null;
     try {
-      vst = JVstHost2.newInstance(vstFile, sampleRate, blockSize);
+      vst = JVstHost2.newInstance(vstFile, SAMPLE_RATE, BLOCK_SIZE);
+    } catch (FileNotFoundException fnfe) {
+      fnfe.printStackTrace(System.err);
+      System.exit(1);
     } catch (JVstLoadException jvle) {
       jvle.printStackTrace(System.err);
       System.exit(1);

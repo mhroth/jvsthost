@@ -54,6 +54,7 @@ public class JVstHost24 extends JVstHost23 {
    */
   public synchronized void processDoubleReplacing(double[][] inputs, double[][] outputs, int blockSize) {
     assertNativeComponentIsLoaded();
+    assertIsTurnedOn();
     if (!canDoubleReplacing) {
       throw new IllegalStateException("This plugin cannot do processDoubleReplacing().");
     }

@@ -39,7 +39,7 @@
 #define JNI_VERSION JNI_VERSION_1_4
 
 #define PPQ 96.0
-#define TEMPO_BPM 120.0
+#define DEFAULT_TEMPO 120.0
 
 // GLOBAL VARIABLES
 JavaVM *jvm;
@@ -60,8 +60,9 @@ typedef struct hostLocalVars {
   double **dOutputs;
   VstTimeInfo *vti;
   void *libPtr;
-  float sampleRate; // cache the current sampleRate and blockSize, so that the java object doesn't have to be asked for it every time an audioMaster callback is made (such as for VstTimeInfo pointers).
+  double sampleRate; // cache the current sampleRate and blockSize, so that the java object doesn't have to be asked for it every time an audioMaster callback is made (such as for VstTimeInfo pointers).
   int blockSize;
+  double tempo;
 };
 
 /**
@@ -358,7 +359,7 @@ VstIntPtr VSTCALLBACK HostCallback (AEffect *effect, VstInt32 opcode, VstInt32 i
     case audioMasterGetTime: {
       VstTimeInfo *vti = ((hostLocalVars *) effect->resvd1)->vti;
       vti->samplePos = 0.0;
-      vti->sampleRate = (double) ((hostLocalVars *) effect->resvd1)->sampleRate;
+      vti->sampleRate = ((hostLocalVars *) effect->resvd1)->sampleRate;
       vti->flags = 0;
       if (value & kVstNanosValid != 0) { // bit 8
         // Live returns this...
@@ -371,7 +372,7 @@ VstIntPtr VSTCALLBACK HostCallback (AEffect *effect, VstInt32 opcode, VstInt32 i
         vti->flags |= kVstPpqPosValid;
       }
       if (value & kVstTempoValid != 0) { // bit 10
-        vti->tempo = TEMPO_BPM;
+        vti->tempo = (double) ((hostLocalVars *) effect->resvd1)->tempo;
         vti->flags |= kVstTempoValid;
       }
       if (value & kVstBarsValid != 0) { // bit 11
@@ -780,6 +781,7 @@ JNIEXPORT jlong JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost2_loadPlu
   initHostLocalArrays(ae);
   ((hostLocalVars *) ae->resvd1)->vti = (VstTimeInfo *) malloc(sizeof(VstTimeInfo));
   ((hostLocalVars *) ae->resvd1)->libPtr = libptr;
+  ((hostLocalVars *) ae->resvd1)->tempo = DEFAULT_TEMPO;
 
   return (jlong) ae;
 }
@@ -1280,8 +1282,15 @@ JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_setSamp
   (JNIEnv *env, jclass jclazz, jfloat sampleRate, jlong ae) {
   
   AEffect *effect = (AEffect *)ae;
-  ((hostLocalVars *) effect->resvd1)->sampleRate = sampleRate;
+  ((hostLocalVars *) effect->resvd1)->sampleRate = (double) sampleRate;
   effect->dispatcher (effect, effSetSampleRate, 0, 0, 0, sampleRate);
+}
+
+JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_setTempo
+  (JNIEnv *env, jclass jclazz, jdouble tempo, jlong ae) {
+  
+  AEffect *effect = (AEffect *)ae;
+  ((hostLocalVars *) effect->resvd1)->tempo = (double) tempo;
 }
 
 JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_setBlockSize
