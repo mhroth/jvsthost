@@ -39,7 +39,7 @@
 #define JNI_VERSION JNI_VERSION_1_4
 
 #define PPQ 96.0
-#define TEMPO_BPM 120.0
+#define DEFAULT_TEMPO 120.0
 
 // GLOBAL VARIABLES
 JavaVM *jvm;
@@ -62,28 +62,46 @@ typedef struct hostLocalVars {
   double **dOutputs;
   VstTimeInfo *vti;
   void *libPtr;
-  float sampleRate; // cache the current sampleRate and blockSize, so that the java object doesn't have to be asked for it every time an audioMaster callback is made (such as for VstTimeInfo pointers).
+  double sampleRate; // cache the current sampleRate and blockSize, so that the java object doesn't have to be asked for it every time an audioMaster callback is made (such as for VstTimeInfo pointers).
   int blockSize;
+  double tempo;
 };
 
-void initHostLocalArrays(AEffect *effect) {
-  ((hostLocalVars *) effect->resvd1)->fInputs = (float **) malloc(sizeof(float *) * effect->numInputs);
-  ((hostLocalVars *) effect->resvd1)->fOutputs = (float **) malloc(sizeof(float *) * effect->numOutputs);
-  if (effect->flags & effFlagsCanDoubleReplacing) {
-    ((hostLocalVars *) effect->resvd1)->dInputs = (double **) malloc(sizeof(double *) * effect->numInputs);
-    ((hostLocalVars *) effect->resvd1)->dOutputs = (double **) malloc(sizeof(double *) * effect->numOutputs);
+/**
+ * Can be extended in the future if we find that resvd1 is being overwritten by some plugins.
+ */
+bool isHostLocalVarsValid(AEffect *effect) {
+  if (effect != NULL) {
+    return (effect->resvd1 != NULL);
   } else {
-    ((hostLocalVars *) effect->resvd1)->dInputs = 0;
-    ((hostLocalVars *) effect->resvd1)->dOutputs = 0;
+    return false;
+  }
+}
+
+void initHostLocalArrays(AEffect *effect) {
+  if (isHostLocalVarsValid(effect)) {
+    hostLocalVars *hostVars = (hostLocalVars *) effect->resvd1;
+    hostVars->fInputs = (float **) malloc(sizeof(float *) * effect->numInputs);
+    hostVars->fOutputs = (float **) malloc(sizeof(float *) * effect->numOutputs);
+    if (effect->flags & effFlagsCanDoubleReplacing) {
+      hostVars->dInputs = (double **) malloc(sizeof(double *) * effect->numInputs);
+      hostVars->dOutputs = (double **) malloc(sizeof(double *) * effect->numOutputs);
+    } else {
+      hostVars->dInputs = 0;
+      hostVars->dOutputs = 0;
+    }
   }
 }
 
 void freeHostLocalArrays(AEffect *effect) {
-  free(((hostLocalVars *) effect->resvd1)->fInputs);
-  free(((hostLocalVars *) effect->resvd1)->fOutputs);
-  if (effect->flags & effFlagsCanDoubleReplacing) {
-    free(((hostLocalVars *) effect->resvd1)->dInputs);
-    free(((hostLocalVars *) effect->resvd1)->dOutputs);
+  if (isHostLocalVarsValid(effect)) {
+    hostLocalVars *hostVars = (hostLocalVars *) effect->resvd1;
+    free(hostVars->fInputs);
+    free(hostVars->fOutputs);
+    if (effect->flags & effFlagsCanDoubleReplacing) {
+      free(hostVars->dInputs);
+      free(hostVars->dOutputs);
+    }
   }
 }
 
@@ -117,10 +135,10 @@ JNIEXPORT void JNICALL JNI_OnUnload(JavaVM *jvm, void *reserved) {
 }
 
 jobject getCachedCallingObject(AEffect *effect) {
-  if (effect->resvd1 == NULL) {
-    return NULL;
-  } else {
+  if (isHostLocalVarsValid(effect)) {
     return ((hostLocalVars *) effect->resvd1)->jVstHost2;
+  } else {
+    return NULL;
   }
 }
 
@@ -344,7 +362,7 @@ VstIntPtr VSTCALLBACK HostCallback (AEffect *effect, VstInt32 opcode, VstInt32 i
     case audioMasterGetTime: {
       VstTimeInfo *vti = ((hostLocalVars *) effect->resvd1)->vti;
       vti->samplePos = 0.0;
-      vti->sampleRate = (double) ((hostLocalVars *) effect->resvd1)->sampleRate;
+      vti->sampleRate = ((hostLocalVars *) effect->resvd1)->sampleRate;
       vti->flags = 0;
       if (value & kVstNanosValid != 0) { // bit 8
         // Live returns this...
@@ -357,7 +375,7 @@ VstIntPtr VSTCALLBACK HostCallback (AEffect *effect, VstInt32 opcode, VstInt32 i
         vti->flags |= kVstPpqPosValid;
       }
       if (value & kVstTempoValid != 0) { // bit 10
-        vti->tempo = TEMPO_BPM;
+        vti->tempo = ((hostLocalVars *) effect->resvd1)->tempo;
         vti->flags |= kVstTempoValid;
       }
       if (value & kVstBarsValid != 0) { // bit 11
@@ -606,7 +624,9 @@ JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_setThis
   (JNIEnv *env, jobject jobj, jlong ae) {
 
   AEffect *effect = (AEffect *)ae;
-  ((hostLocalVars *) effect->resvd1)->jVstHost2 = env->NewWeakGlobalRef(jobj);
+  if (isHostLocalVarsValid(effect)) {
+    ((hostLocalVars *) effect->resvd1)->jVstHost2 = env->NewWeakGlobalRef(jobj);  
+  }
   
 }
 
@@ -616,7 +636,6 @@ JNIEXPORT jlong JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost2_loadPlu
   void *libptr = NULL;
   AEffect *ae = NULL;
 
-  // minihost.cpp
   #if _WIN32
     const char *path = (char *)(env->GetStringUTFChars(pluginPath, NULL));
     if (path == NULL) {
@@ -760,37 +779,48 @@ JNIEXPORT jlong JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost2_loadPlu
   initHostLocalArrays(ae);
   ((hostLocalVars *) ae->resvd1)->vti = (VstTimeInfo *) malloc(sizeof(VstTimeInfo));
   ((hostLocalVars *) ae->resvd1)->libPtr = libptr;
-  ((hostLocalVars *) ae->resvd1)->sampleRate = 0.0f;
+  ((hostLocalVars *) ae->resvd1)->sampleRate = 0.0;
   ((hostLocalVars *) ae->resvd1)->blockSize = 0;
+  ((hostLocalVars *) ae->resvd1)->tempo = DEFAULT_TEMPO;
 
   return (jlong) ae;
 }
 
 JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost2_unloadPlugin
   (JNIEnv *env, jclass jclazz, jlong ae) {
-  
+
   if (ae != 0) {
     AEffect *effect = (AEffect *)ae;
     
-    void *libPtr = ((hostLocalVars *) effect->resvd1)->libPtr;
-    
-    // free the host local variables
-    env->DeleteWeakGlobalRef(((hostLocalVars *) effect->resvd1)->jVstHost2);
-    freeHostLocalArrays(effect);
-    free(((hostLocalVars *) effect->resvd1)->vti);
-    free((hostLocalVars *) effect->resvd1);
-    
-    // close the plugin
-    effect->dispatcher (effect, effClose, 0, 0, 0, 0);
-    
-    // close the library from which the plugin was loaded
-    #if _WIN32
-      FreeLibrary((HMODULE) libPtr);
-    #elif TARGET_API_MAC_CARBON
-      CFRelease((CFBundleRef)libPtr);
-    #else
-      dlclose(libPtr);
-    #endif
+    if (isHostLocalVarsValid(effect)) {
+      hostLocalVars *hostVars = (hostLocalVars *) effect->resvd1;
+      void *libPtr = hostVars->libPtr;
+      if (hostVars->jVstHost2 != 0) {
+        env->DeleteWeakGlobalRef(hostVars->jVstHost2);
+      }
+      freeHostLocalArrays(effect);
+      if (hostVars->vti != 0) {
+        free(hostVars->vti);
+      }
+      free(hostVars);
+      effect->resvd1 = NULL;
+      
+      // close the plugin
+      effect->dispatcher (effect, effClose, 0, 0, 0, 0);
+      
+      // close the library from which the plugin was loaded
+      if (libPtr != 0) {
+        #if _WIN32
+          FreeLibrary((HMODULE) libPtr);
+        #elif TARGET_API_MAC_CARBON
+          CFRelease((CFBundleRef)libPtr);
+        #else
+          dlclose(libPtr);
+        #endif
+      }
+    } else {
+      effect->dispatcher (effect, effClose, 0, 0, 0, 0);
+    }
   }
 }
 
@@ -880,6 +910,11 @@ INT_PTR CALLBACK EditorProc (HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
     }
     */
     case WM_DESTROY: {
+      if (effect != NULL) {
+        env->MonitorEnter(getCachedCallingObject(effect));
+        effect->dispatcher (effect, effEditClose, 0, 0, 0, 0);
+        env->MonitorExit(getCachedCallingObject(effect));
+      }
       KillTimer(hwnd, 1);
       PostQuitMessage(0);
       return TRUE;
@@ -1368,8 +1403,15 @@ JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_setSamp
   (JNIEnv *env, jclass jclazz, jfloat sampleRate, jlong ae) {
   
   AEffect *effect = (AEffect *)ae;
-  ((hostLocalVars *) effect->resvd1)->sampleRate = sampleRate;
+  ((hostLocalVars *) effect->resvd1)->sampleRate = (double) sampleRate;
   effect->dispatcher (effect, effSetSampleRate, 0, 0, 0, sampleRate);
+}
+
+JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_setTempo
+  (JNIEnv *env, jclass jclazz, jdouble tempo, jlong ae) {
+  
+  AEffect *effect = (AEffect *)ae;
+  ((hostLocalVars *) effect->resvd1)->tempo = (double) tempo;
 }
 
 JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_setBlockSize

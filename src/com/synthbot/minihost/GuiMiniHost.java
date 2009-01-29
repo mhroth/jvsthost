@@ -22,13 +22,13 @@
 package com.synthbot.minihost;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 
 import com.synthbot.audioio.vst.JVstAudioThread;
 import com.synthbot.audioplugin.view.StringGui;
 import com.synthbot.audioplugin.vst.JVstLoadException;
 import com.synthbot.audioplugin.vst.vst2.AbstractJVstHostListener;
 import com.synthbot.audioplugin.vst.vst2.JVstHost2;
-import com.synthbot.minihost.view.JVstMiniHostGui;
 
 public class GuiMiniHost extends AbstractJVstHostListener {
 
@@ -49,6 +49,9 @@ public class GuiMiniHost extends AbstractJVstHostListener {
     // load the vst
     try {
       vst = JVstHost2.newInstance(vstFile, SAMPLE_RATE, BLOCK_SIZE);
+    } catch (FileNotFoundException fnfe) {
+      fnfe.printStackTrace(System.err);
+      System.exit(1);
     } catch (JVstLoadException jvle) {
       jvle.printStackTrace(System.err);
       System.exit(1);

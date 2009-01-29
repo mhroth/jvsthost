@@ -98,7 +98,9 @@ There is a basic idiom to loading a VST, which is written below.
 
 JVstHost2 vst;
 try {
-  vst = JVstHost2.newInstance(vstFile, sampleRate, blockSize);
+  vst = JVstHost2.newInstance(vstFile, SAMPLE_RATE, BLOCK_SIZE);
+} catch (FileNotFoundException fnfe) {
+  fnfe.printStackTrace(System.err);
 } catch (JVstLoadException jvle) {
   jvle.printStackTrace(System.err);
 }

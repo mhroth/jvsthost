@@ -40,8 +40,8 @@ public class JVstHost20 extends JVstHost2 {
   protected int blockSize; // the last maximum blockSize to which the plugin was set
   protected final boolean canProcessReplacing;
   protected final boolean hasNativeEditor;
-  protected boolean isSuspended;
   protected volatile Thread editorThread; // volatile because the variable can be get/set by either the vst thread or the editor thread
+  protected boolean isTurnedOff;
   
   protected final List<ShortMessage> queuedMidiMessages;
   
@@ -57,7 +57,7 @@ public class JVstHost20 extends JVstHost2 {
     numPrograms = numPrograms(); // this value seems never to be changed
     canProcessReplacing = (canReplacing(pluginPtr) != 0);
     hasNativeEditor = (hasEditor(vstPluginPtr) != 0);
-    isSuspended = true;
+    isTurnedOff = true;
     
     queuedMidiMessages = new ArrayList<ShortMessage>();
     
@@ -69,13 +69,16 @@ public class JVstHost20 extends JVstHost2 {
    * This reference allows callbacks methods to by easily called to the correct object.
    */
   private native void setThis(long pluginPtr);
+
+  protected void assertIsTurnedOff() {
+    if (!isTurnedOff) {
+      throw new IllegalStateException("The plugin must be turned off in order to perform this operation.");
+    }
+  }
   
-  /**
-   * @throws IllegalStateException  Thrown if the plugin is currently not suspended.
-   */
-  protected synchronized void assertIsSuspended() {
-    if (!isSuspended) {
-      throw new IllegalStateException("The plugin must be suspended in order to perform this operation.");
+  protected void assertIsTurnedOn() {
+    if (isTurnedOff) {
+      throw new IllegalStateException("The plugin must be turned on in order to perform this operation.");
     }
   }
   
@@ -99,6 +102,7 @@ public class JVstHost20 extends JVstHost2 {
   @Override
   public synchronized void processReplacing(float[][] inputs, float[][] outputs, int blockSize) {
     assertNativeComponentIsLoaded();
+    assertIsTurnedOn();
     if (!canProcessReplacing) {
       throw new IllegalStateException("This plugin does not implement processReplacing().");
     }
@@ -144,6 +148,7 @@ public class JVstHost20 extends JVstHost2 {
   @Override
   public synchronized void process(float[][] inputs, float[][] outputs, int blockSize) {
     assertNativeComponentIsLoaded();
+    assertIsTurnedOn();
     if (inputs == null) {
       throw new NullPointerException("The inputs array is null.");
     } else if (inputs.length < numInputs) {
@@ -176,21 +181,6 @@ public class JVstHost20 extends JVstHost2 {
     process(messages, inputs, outputs, blockSize, vstPluginPtr);
   }
   protected static native void process(ShortMessage[] messages, float[][] inputs, float[][] outputs, int blockSize, long pluginPtr);
-  
-  @Override
-  public void suspend() {
-    assertNativeComponentIsLoaded();
-    suspend(vstPluginPtr);
-    isSuspended = true;
-  }
-  
-  @Override
-  public void resume() {
-    assertNativeComponentIsLoaded();
-    resume(vstPluginPtr);
-    isSuspended = false;
-  }
-  protected static native void resume(long pluginPtr);
   
   @Override
   public synchronized boolean canDo(VstPluginCanDo canDo) {
@@ -303,7 +293,7 @@ public class JVstHost20 extends JVstHost2 {
   
   @Override
   public synchronized void setSampleRate(float sampleRate) {
-    assertIsSuspended();
+    assertIsTurnedOff();
     assertNativeComponentIsLoaded();
     if (sampleRate <= 0f) {
       throw new IllegalArgumentException("Sample rate must be positive: " + sampleRate);
@@ -319,8 +309,15 @@ public class JVstHost20 extends JVstHost2 {
   }
   
   @Override
+  public synchronized void setTempo(double tempo) {
+    setTempo(tempo, vstPluginPtr);
+  }
+  protected static native void setTempo(double tempo, long pluginPtr);
+  
+  
+  @Override
   public synchronized void setBlockSize(int blockSize) throws IllegalArgumentException {
-    assertIsSuspended();
+    assertIsTurnedOff();
     assertNativeComponentIsLoaded();
     if (blockSize <= 0) {
       throw new IllegalArgumentException("Blocks size must be positive: " + blockSize);
@@ -457,18 +454,24 @@ public class JVstHost20 extends JVstHost2 {
   
   @Override
   public synchronized void turnOn() {
-    resume();
+    if (isTurnedOff) {
+      resume(vstPluginPtr);
+      isTurnedOff = false;
+    }
   }
+  protected static native void resume(long pluginPtr);
   
   @Override
   public synchronized void turnOff() {
-    suspend();
+    if (!isTurnedOff) {
+      suspend(vstPluginPtr);
+      isTurnedOff = true;
+    }
   }
   protected static native void suspend(long pluginPtr);
   
   @Override
   public synchronized void setBankChunk(byte[] chunkData) {
-    assertNativeComponentIsLoaded();
     assertNativeComponentIsLoaded();
     if (chunkData == null) {
       throw new NullPointerException("Chunk data cannot be null.");

@@ -22,6 +22,7 @@
 package com.synthbot.minihost;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 
 import javax.sound.midi.InvalidMidiDataException;
 import javax.sound.midi.ShortMessage;
@@ -30,6 +31,7 @@ import com.synthbot.audioio.vst.JVstAudioThread;
 import com.synthbot.audioplugin.vst.JVstLoadException;
 import com.synthbot.audioplugin.vst.vst2.AbstractJVstHostListener;
 import com.synthbot.audioplugin.vst.vst2.JVstHost2;
+
 
 /**
  * This class is meant as a simple demonstration of how to host a JVstHost.
@@ -40,8 +42,8 @@ import com.synthbot.audioplugin.vst.vst2.JVstHost2;
  */
 public class RandomMiniHost extends AbstractJVstHostListener {
 
-  private static final float sampleRate = 44100f;
-  private static final int blockSize = 4096;
+  private static final float SAMPLE_RATE = 44100f;
+  private static final int BLOCK_SIZE = 8912;
   private JVstHost2 vst;
   private JVstAudioThread audioThread;
 
@@ -51,7 +53,10 @@ public class RandomMiniHost extends AbstractJVstHostListener {
   public RandomMiniHost(File vstFile) {
     vst = null;
     try {
-      vst = JVstHost2.newInstance(vstFile, sampleRate, blockSize);
+      vst = JVstHost2.newInstance(vstFile, SAMPLE_RATE, BLOCK_SIZE);
+    } catch (FileNotFoundException fnfe) {
+      fnfe.printStackTrace(System.err);
+      System.exit(1);
     } catch (JVstLoadException jvle) {
       jvle.printStackTrace(System.err);
       System.exit(1);

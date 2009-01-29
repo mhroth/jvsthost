@@ -44,6 +44,8 @@ import com.synthbot.audioplugin.vst.view.JVstViewListener;
  * Most methods in this and subclasses will check to make sure that the native library is loaded
  * before executing any native code. If a method is called and the native library is not loaded,
  * then an <code>IllegalStateException</code> will be thrown.
+ * 
+ * All public methods of JVstHost2 and its subclasses are synchronized. They are thread-safe.
  *
  */
 public abstract class JVstHost2 implements JVstViewListener {
@@ -64,11 +66,15 @@ public abstract class JVstHost2 implements JVstViewListener {
    * @param file  The location of the native plugin library.
    * @param sampleRate  The sample rate at which the plugin should operate.
    * @param blockSize  The maximum size of an audio block
-   * @return A new instance of a JVstHost2 subclass corresponding to the plugin's vst version.
+   * @return A new instance of a <code>JVstHost2</code> subclass corresponding to the plugin's vst version.
+   * @throws FileNotFoundException  Thrown if the given VST File does not exist.
+   * @throws IllegalArgumentException  Thrown if the supplied sample rate or block size exceed their allowed values.
+   * See <code>setSampleRate</code> and <code>setBlockSize</code>.
    * @throws JVstLoadException  Thrown if there are any errors while loading the native VST.
-   * Use <code>JVstLoadException.getMessage</code> to retrieve the cause.
+   * @throws NullPointerException  Thrown if the given VST File is null.
+   * @throws For more information on exceptions, see <a href="http://github.com/mhroth/jvsthost/wikis/micro-blog/#fn3">http://github.com/mhroth/jvsthost/wikis/micro-blog/</a>
    */
-  public static JVstHost2 newInstance(File file, float sampleRate, int blockSize) throws JVstLoadException {
+  public static JVstHost2 newInstance(File file, float sampleRate, int blockSize) throws FileNotFoundException, JVstLoadException {
     JVstHost2 vst = newInstance(file);
     vst.setSampleRate(sampleRate);
     vst.setBlockSize(blockSize);
@@ -81,13 +87,18 @@ public abstract class JVstHost2 implements JVstViewListener {
    * only initialised, and not started, nor supplied with necessary information, such as sample rate
    * or block size.
    * @param file  The location of the native plugin library.
-   * @return A new instance of a JVstHost2 subclass corresponding to the plugin's vst version.
+   * @return A new instance of a <code>JVstHost2</code> subclass corresponding to the plugin's vst version.
+   * @throws FileNotFoundException  Thrown if the given VST File does not exist.
    * @throws JVstLoadException  Thrown if there are any errors while loading the native VST.
-   * Use JVstLoadException.getMessage() to retrieve the cause.
+   * @throws NullPointerException  Thrown if the given VST File is null.
+   * @throws For more information on exceptions, see <a href="http://github.com/mhroth/jvsthost/wikis/micro-blog/#fn3">http://github.com/mhroth/jvsthost/wikis/micro-blog/</a>
    */
-  public static JVstHost2 newInstance(File file) throws JVstLoadException {
+  public static JVstHost2 newInstance(File file) throws FileNotFoundException, JVstLoadException {
+    if (file == null) {
+      throw new NullPointerException("VST file cannot be null. Specify a non-null File object.");
+    }
     if (!file.exists()) {
-      throw new JVstLoadException(new FileNotFoundException(file.toString()));
+      throw new FileNotFoundException(file.toString());
     }
     long pluginPtr = loadPlugin(file.toString());
     int vstVersionInt = getVstVersion(pluginPtr);
@@ -134,7 +145,7 @@ public abstract class JVstHost2 implements JVstViewListener {
   
   @Override
   public String toString() {
-    return getEffectName() + " by " + getVendorName() + "@0x" + Long.toHexString(vstPluginPtr);
+    return getEffectName() + "@0x" + Long.toHexString(vstPluginPtr); 
   }
   
   /**
@@ -313,7 +324,7 @@ public abstract class JVstHost2 implements JVstViewListener {
    * Set the sample rate at which the plugin should process the audio.
    * @param sampleRate  The new sample rate.
    * @throws IllegalArgumentException  Thrown if the new sample rate is non-positive.
-   * @throws IllegalStateException  Thrown if the plugin is not suspended.
+   * @throws IllegalStateException  Thrown if the plugin is turned on.
    */
   public abstract void setSampleRate(float sampleRate);
   
@@ -328,7 +339,7 @@ public abstract class JVstHost2 implements JVstViewListener {
    * The block size can be made smaller when calling processReplacing().
    * @param blockSize  The new block size.
    * @throws IllegalArgumentException  Thrown in the block size is negative.
-   * @throws IllegalStateException  Thrown if the plugin is not suspended.
+   * @throws IllegalStateException  Thrown if the plugin is turned on.
    */
   public abstract void setBlockSize(int blockSize);
   
@@ -339,14 +350,12 @@ public abstract class JVstHost2 implements JVstViewListener {
   public abstract int getBlockSize();
   
   /**
-   * 
+   * Set the current tempo in beats per minute (BPM). Some plugins have tempo-based
+   * effects, such as synchronised LFOs, etc. This value will influence their function.
+   * A default value of 120 BPM is used.
+   * @param tempo  The new tempo in beats per minute.
    */
-  public abstract void suspend();
-  
-  /**
-   * 
-   */
-  public abstract void resume();
+  public abstract void setTempo(double tempo);
   
   /**
    * Returns the initial plugin audio processing delay in samples.
@@ -428,13 +437,16 @@ public abstract class JVstHost2 implements JVstViewListener {
   }
   
   /**
-   * Ensure that the plugin is initialised and ready to process.
+   * Ensure that the plugin is initialised and ready to process. Plugins must be
+   * turned on in order to process audio or midi events. Successive invocations of
+   * this method have no effect.
    */
   public abstract void turnOn();
   
   /**
    * Suspend the plugin's operation. Plugins must usually be turned off in order
-   * to set critical parameters such as sample rate or block size. 
+   * to set critical parameters such as sample rate or block size. Successive invocations
+   * of this method have no effect.
    */
   public abstract void turnOff();
   
