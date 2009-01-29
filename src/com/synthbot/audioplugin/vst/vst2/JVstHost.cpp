@@ -1,6 +1,6 @@
 /*
- *  Copyright 2007, 2008 Martin Roth (mhroth@gmail.com)
- *                       Matthew Yee-King
+ *  Copyright 2007 - 2009 Martin Roth (mhroth@gmail.com)
+ *                        Matthew Yee-King
  * 
  *  This file is part of JVstHost.
  *
@@ -47,6 +47,8 @@ jclass vpwClass;
 jmethodID vpwAudioMasterProcessMidiEvents;
 jmethodID vpwAudioMasterIoChanged;
 jmethodID vpwAudioMasterAutomate;
+jmethodID vpwAudioMasterBeginEdit;
+jmethodID vpwAudioMasterEndEdit;
 jmethodID getPluginDirectory;
 
 /**
@@ -101,6 +103,8 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *ur_jvm, void *reserved) {
   vpwAudioMasterProcessMidiEvents = env->GetMethodID(vpwClass, "audioMasterProcessMidiEvents", "(IIII)V");
   vpwAudioMasterIoChanged = env->GetMethodID(vpwClass, "audioMasterIoChanged", "(IIII)V");
   vpwAudioMasterAutomate = env->GetMethodID(vpwClass, "audioMasterAutomate", "(IF)V");
+  vpwAudioMasterBeginEdit = env->GetMethodID(vpwClass, "audioMasterBeginEdit", "(I)V");
+  vpwAudioMasterEndEdit = env->GetMethodID(vpwClass, "audioMasterEndEdit", "(I)V");
   //getPluginDirectory = env->GetMethodID(vpwClass, "getPluginDirectory", "()Ljava/lang/String;");
   
   return JNI_VERSION;
@@ -113,7 +117,11 @@ JNIEXPORT void JNICALL JNI_OnUnload(JavaVM *jvm, void *reserved) {
 }
 
 jobject getCachedCallingObject(AEffect *effect) {
-  return ((hostLocalVars *) effect->resvd1)->jVstHost2;
+  if (effect->resvd1 == NULL) {
+    return NULL;
+  } else {
+    return ((hostLocalVars *) effect->resvd1)->jVstHost2;
+  }
 }
 
 void opcode2string(VstInt32 opcode, VstIntPtr value, JNIEnv *env) {
@@ -126,7 +134,6 @@ void opcode2string(VstInt32 opcode, VstIntPtr value, JNIEnv *env) {
     }
     case audioMasterVersion: {
       message = env->NewStringUTF("audioMasterVersion");
-      //printf("audioMasterVersion: %i\n", kVstVersion);
       break;
     }
     case audioMasterCurrentId: {
@@ -289,12 +296,17 @@ VstIntPtr VSTCALLBACK HostCallback (AEffect *effect, VstInt32 opcode, VstInt32 i
     // such as by the plugin's own editor
     // called when the plugin calls setParameterAutomated
     case audioMasterAutomate: {
-      env->CallVoidMethod(
-          getCachedCallingObject(effect),
-          vpwAudioMasterAutomate,
-          (jint) index,
-          (jfloat) opt);
-      return 1;
+      jobject jobj = getCachedCallingObject(effect);
+      if (jobj == NULL) {
+        return 0;
+      } else {
+        env->CallVoidMethod(
+            jobj,
+            vpwAudioMasterAutomate,
+            (jint) index,
+            (jfloat) opt);
+        return 1;
+      }
     }
     
     // Host VST version
@@ -332,14 +344,14 @@ VstIntPtr VSTCALLBACK HostCallback (AEffect *effect, VstInt32 opcode, VstInt32 i
     case audioMasterGetTime: {
       VstTimeInfo *vti = ((hostLocalVars *) effect->resvd1)->vti;
       vti->samplePos = 0.0;
-      vti->sampleRate = (double) ((hostLocalVars *) effect->resvd1)->sampleRate; // HostCallback(effect, audioMasterGetSampleRate, 0, NULL, NULL, 0.0);
+      vti->sampleRate = (double) ((hostLocalVars *) effect->resvd1)->sampleRate;
       vti->flags = 0;
       if (value & kVstNanosValid != 0) { // bit 8
         // Live returns this...
         //vti->nanoSeconds = 0.0;
         //vti->flags |= kVstNanosValid;
       }
-      if (value & kVstPpqPosValid != 0) { // bit 9        
+      if (value & kVstPpqPosValid != 0) { // bit 9
         //vti->ppqPos = (vti->samplePos/vti->sampleRate) * (TEMPO_BPM/60.0);
         vti->ppqPos = 0.0;
         vti->flags |= kVstPpqPosValid;
@@ -387,47 +399,60 @@ VstIntPtr VSTCALLBACK HostCallback (AEffect *effect, VstInt32 opcode, VstInt32 i
      * NOTE: less information is being passed up than is available in the VstMidiEvent structure.
      */
     case audioMasterProcessEvents: {
-      VstEvents *vstes = (VstEvents *)ptr;
-      VstEvent *vste;
-      VstMidiEvent *vstme;
-      VstMidiSysexEvent *vstmse;
-      
-      for (int i = 0; i < vstes->numEvents; i++) {
-        vste = vstes->events[i];
-        switch (vste->type) {
-          case kVstMidiType: {
-            vstme = (VstMidiEvent *)vste;
-            env->CallVoidMethod(
-                getCachedCallingObject(effect),
-                vpwAudioMasterProcessMidiEvents, 
-                ((jint) vstme->midiData[0]) & 0x000000F0,
-                ((jint) vstme->midiData[0]) & 0x0000000F,
-                ((jint) vstme->midiData[1]) & 0x000000FF,
-                ((jint) vstme->midiData[2]) & 0x000000FF);
-            break;
-          }
-          case kVstSysExType: {
-            // not handling this case at the moment
-            break;
+      jobject jobj = getCachedCallingObject(effect);
+      if (jobj == NULL) {
+        return 0;
+      } else {
+        VstEvents *vstes = (VstEvents *)ptr;
+        VstEvent *vste;
+        VstMidiEvent *vstme;
+        VstMidiSysexEvent *vstmse;
+        
+        for (int i = 0; i < vstes->numEvents; i++) {
+          vste = vstes->events[i];
+          switch (vste->type) {
+            case kVstMidiType: {
+              vstme = (VstMidiEvent *)vste;
+              env->CallVoidMethod(
+                  jobj,
+                  vpwAudioMasterProcessMidiEvents, 
+                  ((jint) vstme->midiData[0]) & 0x000000F0,
+                  ((jint) vstme->midiData[0]) & 0x0000000F,
+                  ((jint) vstme->midiData[1]) & 0x000000FF,
+                  ((jint) vstme->midiData[2]) & 0x000000FF);
+              break;
+            }
+            case kVstSysExType: {
+              // not handling this case at the moment
+              break;
+            }
           }
         }
+        return 1;
       }
-    
-      return 1;
     }
     
     case audioMasterIOChanged: {
-     freeHostLocalArrays(effect);
-     initHostLocalArrays(effect); // reinitialise the arrays with the new numInputs and numOutputs
-             
-      env->CallVoidMethod(
-          getCachedCallingObject(effect),
-          vpwAudioMasterIoChanged,
-          effect->numInputs,
-          effect->numOutputs,
-          effect->initialDelay,
-          effect->numParams);
-      return 1;
+      jobject jobj = getCachedCallingObject(effect);
+      if (jobj == NULL) {
+        return 0;
+      } else {
+        env->MonitorEnter(jobj);
+  
+        freeHostLocalArrays(effect);
+        initHostLocalArrays(effect); // reinitialise the arrays with the new numInputs and numOutputs
+               
+        env->CallVoidMethod(
+            jobj,
+            vpwAudioMasterIoChanged,
+            effect->numInputs,
+            effect->numOutputs,
+            effect->initialDelay,
+            effect->numParams);
+  
+        env->MonitorExit(jobj);
+        return 1;
+      }
     }
     
     // [index]: new width [value]: new height [return value]: 1 if supported
@@ -543,6 +568,32 @@ VstIntPtr VSTCALLBACK HostCallback (AEffect *effect, VstInt32 opcode, VstInt32 i
     
     case audioMasterUpdateDisplay: {
       return 0;
+    }
+    
+    case audioMasterBeginEdit: {
+      jobject jobj = getCachedCallingObject(effect);
+      if (jobj == NULL) {
+        return 0;
+      } else {
+        env->CallVoidMethod(
+            jobj,
+            vpwAudioMasterBeginEdit,
+            (jint) index);
+        return 1;
+      }
+    }
+    
+    case audioMasterEndEdit: {
+      jobject jobj = getCachedCallingObject(effect);
+      if (jobj == NULL) {
+        return 0;
+      } else {
+        env->CallVoidMethod(
+            jobj,
+            vpwAudioMasterEndEdit,
+            (jint) index);
+        return 1;
+      }
     }
     
     default: {
@@ -709,6 +760,8 @@ JNIEXPORT jlong JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost2_loadPlu
   initHostLocalArrays(ae);
   ((hostLocalVars *) ae->resvd1)->vti = (VstTimeInfo *) malloc(sizeof(VstTimeInfo));
   ((hostLocalVars *) ae->resvd1)->libPtr = libptr;
+  ((hostLocalVars *) ae->resvd1)->sampleRate = 0.0f;
+  ((hostLocalVars *) ae->resvd1)->blockSize = 0;
 
   return (jlong) ae;
 }
@@ -748,7 +801,97 @@ JNIEXPORT jint JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost2_getVstVe
   return effect->dispatcher(effect, effGetVstVersion, 0, 0, 0, 0);
 }
 
-#if TARGET_API_MAC_CARBON
+/*
+ * System dependent windowing code
+ */
+#if _WIN32
+INT_PTR CALLBACK EditorProc (HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+  JNIEnv *env;
+  jvm->GetEnv((void **)&env, JNI_VERSION);
+  
+  AEffect *effect;
+  if (msg == WM_CREATE) {
+    effect = (AEffect *) (((CREATESTRUCT *) lParam)->lpCreateParams);
+  } else {
+    effect = (AEffect *) GetWindowLongPtr(hwnd, 0);
+  }
+  
+  switch(msg) {
+    case WM_CREATE: {
+      if (effect != NULL) {
+        SetWindowText (hwnd, "VST Editor @ JVstHost");
+        SetTimer(hwnd, 1, 25, NULL);
+      
+        //env->MonitorEnter(getCachedCallingObject(effect));
+        //effect->dispatcher (effect, effEditOpen, 0, 0, hwnd, 0);
+
+        ERect* eRect = NULL;
+        effect->dispatcher (effect, effEditGetRect, 0, 0, &eRect, 0);
+        if (eRect != NULL) {
+          int width = eRect->right - eRect->left;
+          int height = eRect->bottom - eRect->top;
+          if (width < 100) {
+            width = 100;
+          }
+          if (height < 100) {
+            height = 100;
+          }
+
+          RECT wRect;
+          SetRect (&wRect, 0, 0, width, height);
+          AdjustWindowRectEx (&wRect, GetWindowLong (hwnd, GWL_STYLE), FALSE, GetWindowLong (hwnd, GWL_EXSTYLE));
+          width = wRect.right - wRect.left;
+          height = wRect.bottom - wRect.top;
+
+          SetWindowPos (hwnd, HWND_TOP, 0, 0, width, height, SWP_NOMOVE);
+          ShowWindow(hwnd, SW_SHOW);
+          UpdateWindow(hwnd);
+          
+          effect->dispatcher (effect, effEditOpen, 0, 0, hwnd, 0);
+          
+          //env->MonitorExit(getCachedCallingObject(effect));
+        }
+        return TRUE; // the message was processed
+      } else {
+        return FALSE;
+      }
+    }
+    
+    case WM_TIMER: {
+      if (effect != NULL) {
+        //env->MonitorEnter(getCachedCallingObject(effect));
+        effect->dispatcher (effect, effEditIdle, 0, 0, 0, 0);
+        //env->MonitorExit(getCachedCallingObject(effect));
+        return TRUE;
+      } else {
+        return FALSE;
+      }
+    }
+    /*
+    case WM_PAINT: {
+      if (effect != NULL) {
+        //env->MonitorEnter(getCachedCallingObject(effect));
+        effect->dispatcher (effect, effEditIdle, 0, 0, 0, 0);
+        //env->MonitorExit(getCachedCallingObject(effect));
+        return TRUE;
+      } else {
+        return FALSE;
+      }
+    }
+    */
+    case WM_DESTROY: {
+      KillTimer(hwnd, 1);
+      PostQuitMessage(0);
+      return TRUE;
+    }
+    
+    default: {
+      return DefWindowProc(hwnd, msg, wParam, lParam);
+    }
+  }
+}
+
+#elif TARGET_API_MAC_CARBON
 void idleTimerProc (EventLoopTimerRef inTimer, void *inUserData)
 {
 	AEffect* effect = (AEffect*)inUserData;
@@ -784,13 +927,39 @@ JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_openEdi
   AEffect *effect = (AEffect *)ae;
 
   #if _WIN32
-    /*
-    MyDLGTEMPLATE t;	
-    t.style = WS_POPUPWINDOW | WS_DLGFRAME | DS_MODALFRAME | DS_CENTER;
-    t.cx = 100;
-    t.cy = 100;
-    DialogBoxIndirectParam (GetModuleHandle (0), &t, 0, (DLGPROC)EditorProc, (LPARAM)effect);
-    */
+    WNDCLASS wndclass;
+    wndclass.style = CS_HREDRAW | CS_VREDRAW;
+    wndclass.lpfnWndProc = (WNDPROC) EditorProc;
+    wndclass.cbClsExtra = 0;
+    wndclass.cbWndExtra = sizeof(LONG_PTR); // a pointer to the associated effect is store with the window in order to allow for callbacks in the window messaging loop
+    wndclass.hInstance = GetModuleHandle(NULL);
+    wndclass.hIcon = LoadIcon(NULL, IDI_APPLICATION);
+    wndclass.hCursor = LoadCursor(NULL, IDC_ARROW);
+    wndclass.hbrBackground = 0;
+    wndclass.lpszMenuName = NULL;
+    wndclass.lpszClassName = TEXT("test");
+    
+    RegisterClass(&wndclass);
+    
+    HWND hwnd = CreateWindow(
+        TEXT("test"), 
+        TEXT("JVstHost"), 
+        WS_SYSMENU, //WS_POPUP | WS_CAPTION | WS_BORDER | WS_SYSMENU | WS_VISIBLE | WS_DLGFRAME | DS_CENTER, //WS_OVERLAPPEDWINDOW | WS_POPUP, 
+        CW_USEDEFAULT, CW_USEDEFAULT, 400, 300,
+        NULL, 
+        NULL, 
+        GetModuleHandle(NULL), 
+        (LPVOID) effect);
+
+    // set the pointer to the effect in the window
+    SetWindowLongPtr(hwnd, 0, (LONG_PTR) effect);
+    
+    MSG msg;
+    while(GetMessage(&msg, NULL, 0, 0) != NULL) {
+      TranslateMessage(&msg);
+      DispatchMessage(&msg);
+    }
+    
     
   #elif TARGET_API_MAC_CARBON
     WindowRef window;

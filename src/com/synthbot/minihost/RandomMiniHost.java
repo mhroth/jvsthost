@@ -21,13 +21,15 @@
 
 package com.synthbot.minihost;
 
+import java.io.File;
+
+import javax.sound.midi.InvalidMidiDataException;
+import javax.sound.midi.ShortMessage;
+
 import com.synthbot.audioio.vst.JVstAudioThread;
 import com.synthbot.audioplugin.vst.JVstLoadException;
+import com.synthbot.audioplugin.vst.vst2.AbstractJVstHostListener;
 import com.synthbot.audioplugin.vst.vst2.JVstHost2;
-
-import java.io.File;
-import javax.sound.midi.ShortMessage;
-import javax.sound.midi.InvalidMidiDataException;
 
 /**
  * This class is meant as a simple demonstration of how to host a JVstHost.
@@ -36,10 +38,10 @@ import javax.sound.midi.InvalidMidiDataException;
  * as a simple way to test plugin loading capabilities and audio system functionality
  * from the command line.
  */
-public class RandomMiniHost   {
+public class RandomMiniHost extends AbstractJVstHostListener {
 
   private static final float sampleRate = 44100f;
-  private static final int blockSize = 8912;
+  private static final int blockSize = 4096;
   private JVstHost2 vst;
   private JVstAudioThread audioThread;
 
@@ -54,11 +56,15 @@ public class RandomMiniHost   {
       jvle.printStackTrace(System.err);
       System.exit(1);
     }
+    
+    vst.addJVstHostListener(this);
 
     // start the audio thread
     audioThread = new JVstAudioThread(vst);
     Thread thread = new Thread(audioThread);
     thread.start();
+    
+    vst.openEditor();
 
     // create a midi note on message
     ShortMessage midiMessage = new ShortMessage();

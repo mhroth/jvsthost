@@ -41,6 +41,7 @@ public class JVstHost20 extends JVstHost2 {
   protected final boolean canProcessReplacing;
   protected final boolean hasNativeEditor;
   protected boolean isSuspended;
+  protected volatile Thread editorThread; // volatile because the variable can be get/set by either the vst thread or the editor thread
   
   protected final List<ShortMessage> queuedMidiMessages;
   
@@ -370,10 +371,23 @@ public class JVstHost20 extends JVstHost2 {
   public synchronized void openEditor() {
     assertNativeComponentIsLoaded();
     assertHasNativeEditor();
-    System.err.println("openNativeEditor is not yet implemented.");
-    //openEditor(vstPluginPtr);
+    if (editorThread == null) {
+      editorThread = new Thread(new Runnable() {
+        public void run() {
+          openEditor(vstPluginPtr); // this method blocks while the native window is open
+          editorThread = null;
+        }
+      });
+      editorThread.setName(toString() + " native editor thread");
+      editorThread.start();      
+    }
   }
   protected static native void openEditor(long pluginPtr);
+  
+  @Override
+  public synchronized boolean isEditorOpen() {
+    return (editorThread != null);
+  }
   
   @Override
   public synchronized void closeEditor() {
@@ -495,7 +509,7 @@ public class JVstHost20 extends JVstHost2 {
   /*
    * Native plugin callbacks.
    */
-  protected void audioMasterProcessMidiEvents(int command, int channel, int data1, int data2) {
+  protected synchronized void audioMasterProcessMidiEvents(int command, int channel, int data1, int data2) {
     try {
       ShortMessage message = new ShortMessage();
       message.setMessage(command, channel, data1, data2);
@@ -511,18 +525,30 @@ public class JVstHost20 extends JVstHost2 {
     }
   }
   
-  protected void audioMasterAutomate(int index, float value) {
+  protected synchronized void audioMasterAutomate(int index, float value) {
     for (JVstHostListener listener : hostListeners) {
       listener.onAudioMasterAutomate(this, index, value);
     }
   }
   
-  protected void audioMasterIoChanged(int numInputs, int numOutputs, int initialDelay, int numParameters) {
+  protected synchronized void audioMasterIoChanged(int numInputs, int numOutputs, int initialDelay, int numParameters) {
     this.numInputs = numInputs; // update cached vars
     this.numOutputs = numOutputs;
     this.numParameters = numParameters;
     for (JVstHostListener listener : hostListeners) {
       listener.onAudioMasterIoChanged(this, numInputs, numOutputs, initialDelay, numParameters);
+    }
+  }
+  
+  protected synchronized void audioMasterBeginEdit(int index) {
+    for (JVstHostListener listener : hostListeners) {
+      listener.onAudioMasterBeginEdit(this, index);
+    }
+  }
+  
+  protected synchronized void audioMasterEndEdit(int index) {
+    for (JVstHostListener listener : hostListeners) {
+      listener.onAudioMasterEndEdit(this, index);
     }
   }
   

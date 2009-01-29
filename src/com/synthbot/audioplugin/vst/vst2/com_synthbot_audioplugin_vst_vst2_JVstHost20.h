@@ -197,7 +197,15 @@ JNIEXPORT jint JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_accepts
  * Signature: (J)V
  */
 JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_openEditor
-  (JNIEnv *, jobject, jlong);
+  (JNIEnv *, jclass, jlong);
+
+/*
+ * Class:     com_synthbot_audioplugin_vst_vst2_JVstHost20
+ * Method:    editIdle
+ * Signature: (Ljava/awt/Canvas;J)V
+ */
+JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_editIdle
+  (JNIEnv *, jclass, jobject, jlong);
 
 /*
  * Class:     com_synthbot_audioplugin_vst_vst2_JVstHost20
@@ -205,7 +213,7 @@ JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_openEdi
  * Signature: (J)V
  */
 JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_closeEditor
-  (JNIEnv *, jobject, jlong);
+  (JNIEnv *, jclass, jlong);
 
 /*
  * Class:     com_synthbot_audioplugin_vst_vst2_JVstHost20

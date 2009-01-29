@@ -52,5 +52,20 @@ public interface JVstHostListener {
    * @param numParameters
    */
   public void onAudioMasterIoChanged(JVstHost2 vst, int numInputs, int numOutputs, int initalDelay, int numParameters);
+  
+  /**
+   * Notifies the listener that a parameter is being edited, such as when the user adjusts a knob 
+   * by holding down a mouse button and dragging.
+   * @param vst  The vst from which this callback is originating.
+   * @param index  The index of the parameter being edited.
+   */
+  public void onAudioMasterBeginEdit(JVstHost2 vst, int index);
+  
+  /**
+   * Notifies the listener that the parameter is no longer being actively edited by the user.
+   * @param vst  The vst from which this callback is originating.
+   * @param index  The index of the parameter no longer being edited.
+   */
+  public void onAudioMasterEndEdit(JVstHost2 vst, int index);
 
 }

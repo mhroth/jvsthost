@@ -132,6 +132,11 @@ public abstract class JVstHost2 implements JVstViewListener {
     System.loadLibrary("jvsthost2");
   }
   
+  @Override
+  public String toString() {
+    return getEffectName() + " by " + getVendorName() + "@0x" + Long.toHexString(vstPluginPtr);
+  }
+  
   /**
    * Indicates if the native component of the plugin is loaded. Any use of the 
    * JVstHost2 object while the plugin is not loaded will throw an <code>IllegalStateException</code>.
@@ -389,16 +394,22 @@ public abstract class JVstHost2 implements JVstViewListener {
   public abstract boolean acceptsProgramsAsChunks();
   
   /**
-   * Open the native editor window.
-   * NOTE: This method is not yet implemented.
-   * @throws IllegalStateException  Thrown if the plugin has no native editor. Check to see if the plugin has a native editor with <code>hasNativeEditor</code>.
+   * Open the native editor window. This method does nothing if the editor is already open.
+   * NOTE: This method is currently only implemented on Windows.
+   * @throws IllegalStateException  Thrown if the plugin has no native editor. Check to see if the plugin has a native editor with <code>hasEditor</code>.
    */
   public abstract void openEditor();
   
   /**
+   * Checks if the editor is currently open.
+   * @return  True if the native editor of the plugin is currently open. False otherwise.
+   */
+  public abstract boolean isEditorOpen();
+  
+  /**
    * Close the native editor window.
    * NOTE: This method is not yet implemented.
-   * @throws IllegalStateException  Thrown if the plugin has no native editor. Check to see if the plugin has a native editor with <code>hasNativeEditor</code>.
+   * @throws IllegalStateException  Thrown if the plugin has no native editor. Check to see if the plugin has a native editor with <code>hasEditor</code>.
    */
   public abstract void closeEditor();
   
@@ -441,6 +452,10 @@ public abstract class JVstHost2 implements JVstViewListener {
   protected abstract void audioMasterAutomate(int index, float value);
   
   protected abstract void audioMasterIoChanged(int numInputs, int numOutputs, int initialDelay, int numParameters);
+  
+  protected abstract void audioMasterBeginEdit(int index);
+  
+  protected abstract void audioMasterEndEdit(int index);
   
   /*
    * Listener manager methods.

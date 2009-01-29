@@ -23,6 +23,7 @@ package com.synthbot.audioplugin.view;
 
 import java.awt.Container;
 import java.awt.Dimension;
+import java.awt.EventQueue;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
@@ -99,7 +100,20 @@ public class StringGui extends JFrame {
       // parameter 'units', e.g. 'seconds', 'Hz'
       JLabel nameLabel = new JLabel(i + ": " + vst.getParameterName(i) + "  (" + vst.getParameterLabel(i) + ")  ", JLabel.RIGHT);
       
-      final JSlider slider = new JSlider(0, 127, (int) (vst.getParameter(i) * 127f));
+      final JSlider slider = new JSlider(0, 127) {
+        private static final long serialVersionUID = 0L;
+        
+        /**
+         * Implement custom bounds checking and limiting.
+         * Some plugins seem to produce parameter values outside of [0,1]
+         */
+        @Override
+        public void setValue(int newValue) {
+          newValue = Math.max(this.sliderModel.getMinimum(), Math.min(newValue, this.sliderModel.getMaximum()));
+          this.sliderModel.setValue(newValue);
+        }
+      };
+      slider.setValue((int) (vst.getParameter(i) * 127f));
       slider.setFocusable(false);
       sliders[i] = slider;
       
@@ -246,11 +260,25 @@ public class StringGui extends JFrame {
   }
   
   public void updateParameter(final int index, final float value) {
-    setSliderValueWithoutFiringChangeListener(index, value);
-    displayLabels[index].setText(vst.getParameterDisplay(index));
+    /*
+     * This method is usually called via audioMaster, which means that it is usually
+     * called from the native plugin. In order to leave the graphics processing to the AWT thread
+     * and not make a potentially time critical thread (such as the native editor) do the work,
+     * we insert the update method into the event queue. 
+     */
+    EventQueue.invokeLater(new Runnable() {
+      public void run() {
+        setSliderValueWithoutFiringChangeListener(index, value);
+        displayLabels[index].setText(vst.getParameterDisplay(index));
+      }
+    });
   }
   
   public void updateProgram(final int index) {
-    programComboBox.setSelectedIndex(index);
+    EventQueue.invokeLater(new Runnable() {
+      public void run() {
+        programComboBox.setSelectedIndex(index);
+      }
+    });
   }
 }

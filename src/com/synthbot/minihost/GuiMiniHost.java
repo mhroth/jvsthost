@@ -44,7 +44,7 @@ public class GuiMiniHost extends AbstractJVstHostListener {
 
     // start the main gui
     // also serves to start the gui thread which is needed to allow later guis to open
-    JVstMiniHostGui miniHostGui = new JVstMiniHostGui();
+    //JVstMiniHostGui miniHostGui = new JVstMiniHostGui();
     
     // load the vst
     try {
@@ -56,22 +56,26 @@ public class GuiMiniHost extends AbstractJVstHostListener {
     
     // add the host as a listener to receive any callbacks
     vst.addJVstHostListener(this);
-    
+
     // start the audio thread
     audioThread = new JVstAudioThread(vst);
     Thread thread = new Thread(audioThread);
     thread.setName(AUDIO_THREAD); // for easy debugging
     thread.setDaemon(true); // allows the JVM to exit normally
     thread.start();
-    
+
     // create and display a StringGui for controlling the vst
     gui = new StringGui(vst);
     gui.setVisible(true);
+
+    vst.openEditor();
   }
   
   @Override
   public void onAudioMasterAutomate(JVstHost2 vst, int index, float value) {
-    gui.updateParameter(index, value);
+    if (gui != null) {
+      gui.updateParameter(index, value);      
+    }
   }
 
   public static void main(String[] args) {

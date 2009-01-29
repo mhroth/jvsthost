@@ -36,5 +36,13 @@ public abstract class AbstractJVstHostListener implements JVstHostListener {
   public void onAudioMasterProcessMidiEvents(JVstHost2 vst, ShortMessage message) {
     // do nothing
   }
+  
+  public void onAudioMasterBeginEdit(JVstHost2 vst, int index) {
+    // do nothing
+  }
+  
+  public void onAudioMasterEndEdit(JVstHost2 vst, int index) {
+    // do nothing
+  }
 
 }
