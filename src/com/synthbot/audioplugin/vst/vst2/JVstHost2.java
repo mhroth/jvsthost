@@ -405,7 +405,14 @@ public abstract class JVstHost2 implements JVstViewListener {
   /**
    * Open the native editor window. This method does nothing if the editor is already open.
    * NOTE: This method is currently only implemented on Windows.
+   * @param frameTitle  The title of the native editor frame. This can be used to uniquely identify individual windows.
    * @throws IllegalStateException  Thrown if the plugin has no native editor. Check to see if the plugin has a native editor with <code>hasEditor</code>.
+   */
+  public abstract void openEditor(String frameTitle);
+  
+  /**
+   * This is a convenience method for <code>openEditor(String frameTitle)</code>.
+   * The results of <code>getEffectName</code> are used as the frame title.
    */
   public abstract void openEditor();
   

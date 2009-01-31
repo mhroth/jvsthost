@@ -105,6 +105,14 @@ void freeHostLocalArrays(AEffect *effect) {
   }
 }
 
+jobject getCachedCallingObject(AEffect *effect) {
+  if (isHostLocalVarsValid(effect)) {
+    return ((hostLocalVars *) effect->resvd1)->jVstHost2;
+  } else {
+    return NULL;
+  }
+}
+
 /**
  * Called only once at start of library load
  */
@@ -132,14 +140,6 @@ JNIEXPORT void JNICALL JNI_OnUnload(JavaVM *jvm, void *reserved) {
   JNIEnv *env;
   jvm->GetEnv((void **)&env, JNI_VERSION);
   env->DeleteWeakGlobalRef(vpwClass);
-}
-
-jobject getCachedCallingObject(AEffect *effect) {
-  if (isHostLocalVarsValid(effect)) {
-    return ((hostLocalVars *) effect->resvd1)->jVstHost2;
-  } else {
-    return NULL;
-  }
 }
 
 void opcode2string(VstInt32 opcode, VstIntPtr value, JNIEnv *env) {
@@ -836,24 +836,16 @@ JNIEXPORT jint JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost2_getVstVe
  */
 #if _WIN32
 INT_PTR CALLBACK EditorProc (HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
-  JNIEnv *env;
-  jvm->GetEnv((void **)&env, JNI_VERSION);
-  
-  AEffect *effect;
-  if (msg == WM_CREATE) {
-    effect = (AEffect *) (((CREATESTRUCT *) lParam)->lpCreateParams);
-  } else {
-    effect = (AEffect *) GetWindowLongPtr(hwnd, 0);
-  }
-  
+
   switch(msg) {
     case WM_CREATE: {
+      AEffect *effect = (AEffect *) (((CREATESTRUCT *) lParam)->lpCreateParams);
       if (effect != NULL) {
-        SetWindowText (hwnd, "VST Editor @ JVstHost");
-        SetTimer(hwnd, 1, 25, NULL);
+        JNIEnv *env;
+        jvm->GetEnv((void **)&env, JNI_VERSION);
+        SetTimer(hwnd, 1, 40, NULL); // 40ms == 25 frames per second
       
-        //env->MonitorEnter(getCachedCallingObject(effect));
-        //effect->dispatcher (effect, effEditOpen, 0, 0, hwnd, 0);
+        env->MonitorEnter(getCachedCallingObject(effect));
 
         ERect* eRect = NULL;
         effect->dispatcher (effect, effEditGetRect, 0, 0, &eRect, 0);
@@ -877,9 +869,10 @@ INT_PTR CALLBACK EditorProc (HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
           ShowWindow(hwnd, SW_SHOW);
           UpdateWindow(hwnd);
           
+          // put this after effEditGetRect, as some plugin apparently need that???  
           effect->dispatcher (effect, effEditOpen, 0, 0, hwnd, 0);
           
-          //env->MonitorExit(getCachedCallingObject(effect));
+          env->MonitorExit(getCachedCallingObject(effect));
         }
         return TRUE; // the message was processed
       } else {
@@ -888,7 +881,10 @@ INT_PTR CALLBACK EditorProc (HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
     }
     
     case WM_TIMER: {
+      AEffect *effect = (AEffect *) GetWindowLongPtr(hwnd, 0);
       if (effect != NULL) {
+        //JNIEnv *env;
+        //jvm->GetEnv((void **)&env, JNI_VERSION);
         //env->MonitorEnter(getCachedCallingObject(effect));
         effect->dispatcher (effect, effEditIdle, 0, 0, 0, 0);
         //env->MonitorExit(getCachedCallingObject(effect));
@@ -897,20 +893,12 @@ INT_PTR CALLBACK EditorProc (HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         return FALSE;
       }
     }
-    /*
-    case WM_PAINT: {
-      if (effect != NULL) {
-        //env->MonitorEnter(getCachedCallingObject(effect));
-        effect->dispatcher (effect, effEditIdle, 0, 0, 0, 0);
-        //env->MonitorExit(getCachedCallingObject(effect));
-        return TRUE;
-      } else {
-        return FALSE;
-      }
-    }
-    */
+
     case WM_DESTROY: {
+      AEffect *effect = (AEffect *) GetWindowLongPtr(hwnd, 0);
       if (effect != NULL) {
+        JNIEnv *env;
+        jvm->GetEnv((void **)&env, JNI_VERSION);
         env->MonitorEnter(getCachedCallingObject(effect));
         effect->dispatcher (effect, effEditClose, 0, 0, 0, 0);
         env->MonitorExit(getCachedCallingObject(effect));
@@ -957,7 +945,7 @@ OSStatus windowHandler (EventHandlerCallRef inHandlerCallRef, EventRef inEvent, 
 
 // http://developer.apple.com/documentation/Carbon/Reference/Window_Manager/Reference/reference.html
 JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_openEditor
-  (JNIEnv *env, jclass jclazz, jlong ae) {
+  (JNIEnv *env, jclass jclazz, jstring jFrameTitle, jlong ae) {
 
   AEffect *effect = (AEffect *)ae;
 
@@ -972,19 +960,23 @@ JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_openEdi
     wndclass.hCursor = LoadCursor(NULL, IDC_ARROW);
     wndclass.hbrBackground = 0;
     wndclass.lpszMenuName = NULL;
-    wndclass.lpszClassName = TEXT("test");
+    wndclass.lpszClassName = "JVstHost Native Editor";
     
     RegisterClass(&wndclass);
     
+    const char *frameTitle = (char *) env->GetStringUTFChars(jFrameTitle, NULL);
+    
     HWND hwnd = CreateWindow(
-        TEXT("test"), 
-        TEXT("JVstHost"), 
+        "JVstHost Native Editor", 
+        frameTitle, 
         WS_SYSMENU, //WS_POPUP | WS_CAPTION | WS_BORDER | WS_SYSMENU | WS_VISIBLE | WS_DLGFRAME | DS_CENTER, //WS_OVERLAPPEDWINDOW | WS_POPUP, 
         CW_USEDEFAULT, CW_USEDEFAULT, 400, 300,
         NULL, 
         NULL, 
         GetModuleHandle(NULL), 
         (LPVOID) effect);
+        
+    env->ReleaseStringUTFChars(jFrameTitle, frameTitle);
 
     // set the pointer to the effect in the window
     SetWindowLongPtr(hwnd, 0, (LONG_PTR) effect);

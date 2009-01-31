@@ -366,20 +366,26 @@ public class JVstHost20 extends JVstHost2 {
   
   @Override
   public synchronized void openEditor() {
+    openEditor(getEffectName());
+  }
+  
+  @Override
+  public synchronized void openEditor(final String frameTitle) {
     assertNativeComponentIsLoaded();
     assertHasNativeEditor();
     if (editorThread == null) {
       editorThread = new Thread(new Runnable() {
         public void run() {
-          openEditor(vstPluginPtr); // this method blocks while the native window is open
+          openEditor(frameTitle, vstPluginPtr); // this method blocks while the native window is open
           editorThread = null;
         }
       });
+      editorThread.setPriority(Thread.MIN_PRIORITY);
       editorThread.setName(toString() + " native editor thread");
       editorThread.start();      
     }
   }
-  protected static native void openEditor(long pluginPtr);
+  protected static native void openEditor(String frameTitle, long pluginPtr);
   
   @Override
   public synchronized boolean isEditorOpen() {

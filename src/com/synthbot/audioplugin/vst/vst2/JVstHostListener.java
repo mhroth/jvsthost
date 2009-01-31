@@ -25,7 +25,8 @@ import javax.sound.midi.ShortMessage;
 
 /**
  * A class implementing this interface can receive callbacks from a VST plugin.
- * These callbacks are the AudioMaster set.
+ * These callbacks are the AudioMaster set. Note that no time intensive operations
+ * should be undertaken by these methods, as they will be run on the plugin's native UI thread.
  */
 public interface JVstHostListener {
   

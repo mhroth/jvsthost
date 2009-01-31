@@ -194,10 +194,10 @@ JNIEXPORT jint JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_accepts
 /*
  * Class:     com_synthbot_audioplugin_vst_vst2_JVstHost20
  * Method:    openEditor
- * Signature: (J)V
+ * Signature: (Ljava/lang/String;J)V
  */
 JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_openEditor
-  (JNIEnv *, jclass, jlong);
+  (JNIEnv *, jclass, jstring, jlong);
 
 /*
  * Class:     com_synthbot_audioplugin_vst_vst2_JVstHost20
