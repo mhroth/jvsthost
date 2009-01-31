@@ -1,34 +1,35 @@
-<?xml version="1.0" encoding="WINDOWS-1252" standalone="no"?>
+<?xml version="1.0" encoding="MacRoman"?>
 <jardesc>
-    <jar path="JVstHost/JVstHost.jar"/>
-    <options buildIfNeeded="true" compress="true" descriptionLocation="/JVstHost/JVstHost.jardesc" exportErrors="true" exportWarnings="true" includeDirectoryEntries="true" overwrite="true" saveDescription="true" storeRefactorings="false" useSourceFolders="false"/>
-    <storedRefactorings deprecationInfo="true" structuralOnly="false"/>
-    <selectedProjects/>
-    <manifest generateManifest="true" mainClassHandleIdentifier="=JVstHost/src&lt;com.synthbot.minihost{GuiMiniHost.java[GuiMiniHost" manifestLocation="" manifestVersion="1.0" reuseManifest="false" saveManifest="false" usesManifest="true">
-        <sealing sealJar="true">
-            <packagesToSeal/>
-            <packagesToUnSeal/>
-        </sealing>
-    </manifest>
-    <selectedElements exportClassFiles="true" exportJavaFiles="true" exportOutputFolder="false">
-        <javaElement handleIdentifier="=JVstHost/src&lt;com.synthbot.audioplugin.vst.vst2{JVstHost24.java"/>
-        <javaElement handleIdentifier="=JVstHost/src&lt;com.synthbot.audioplugin.view"/>
-        <javaElement handleIdentifier="=JVstHost/src&lt;com.synthbot.audioplugin.vst.vst2{JVstHost2.java"/>
-        <folder path="/JVstHost/res"/>
-        <javaElement handleIdentifier="=JVstHost/src&lt;com.synthbot.audioplugin.vst.vst2{JVstHost21.java"/>
-        <javaElement handleIdentifier="=JVstHost/src&lt;com.synthbot.audioplugin.vst.vst2{JVstHost22.java"/>
-        <javaElement handleIdentifier="=JVstHost/src&lt;com.synthbot.minihost"/>
-        <javaElement handleIdentifier="=JVstHost/src&lt;com.synthbot.audioplugin.vst.view"/>
-        <javaElement handleIdentifier="=JVstHost/src&lt;com.synthbot.audioplugin.vst.vst2{JVstHost23.java"/>
-        <javaElement handleIdentifier="=JVstHost/src&lt;com.synthbot.audioplugin.vst.vst2{VstPluginCanDo.java"/>
-        <javaElement handleIdentifier="=JVstHost/src&lt;com.synthbot.audioio"/>
-        <javaElement handleIdentifier="=JVstHost/src&lt;com.synthbot.audioplugin.vst.vst2{JVstHost20.java"/>
-        <javaElement handleIdentifier="=JVstHost/src&lt;com.synthbot.audioplugin.vst"/>
-        <javaElement handleIdentifier="=JVstHost/src&lt;com.synthbot.audioplugin.vst.vst2{JVstPersistence.java"/>
-        <javaElement handleIdentifier="=JVstHost/src&lt;com.synthbot.audioplugin.vst.vst2{JVstHostListener.java"/>
-        <javaElement handleIdentifier="=JVstHost/src&lt;com.synthbot.minihost.view"/>
-        <javaElement handleIdentifier="=JVstHost/src&lt;com.synthbot.audioio.vst"/>
-        <javaElement handleIdentifier="=JVstHost/src&lt;com.synthbot.audioplugin.vst.vst2{AbstractJVstHostListener.java"/>
-    </selectedElements>
-    <fatjar builder="org.eclipse.jdt.ui.plain_jar_builder" launchConfig=""/>
+<jar path="JVstHost/JVstHost.jar"/>
+<options buildIfNeeded="true" compress="true" descriptionLocation="/JVstHost/JVstHost.jardesc" exportErrors="true" exportWarnings="true" includeDirectoryEntries="true" overwrite="true" saveDescription="true" storeRefactorings="false" useSourceFolders="false"/>
+<storedRefactorings deprecationInfo="true" structuralOnly="false"/>
+<selectedProjects/>
+<manifest generateManifest="true" mainClassHandleIdentifier="=JVstHost/src&lt;com.synthbot.minihost{GuiMiniHost.java[GuiMiniHost" manifestLocation="" manifestVersion="1.0" reuseManifest="false" saveManifest="false" usesManifest="true">
+<sealing sealJar="true">
+<packagesToSeal/>
+<packagesToUnSeal/>
+</sealing>
+</manifest>
+<selectedElements exportClassFiles="true" exportJavaFiles="true" exportOutputFolder="false">
+<javaElement handleIdentifier="=JVstHost/src&lt;com.synthbot.minihost{GuiMiniHost.java"/>
+<javaElement handleIdentifier="=JVstHost/src&lt;com.synthbot.audioplugin.vst.vst2{JVstHost21.java"/>
+<javaElement handleIdentifier="=JVstHost/src&lt;com.synthbot.audioplugin.vst{JVstLoadException.java"/>
+<javaElement handleIdentifier="=JVstHost/src&lt;com.synthbot.audioplugin.vst.vst2{AbstractJVstHostListener.java"/>
+<javaElement handleIdentifier="=JVstHost/src&lt;com.synthbot.audioplugin.view"/>
+<javaElement handleIdentifier="=JVstHost/src&lt;com.synthbot.audioplugin.vst.vst2{JVstPersistence.java"/>
+<javaElement handleIdentifier="=JVstHost/src&lt;com.synthbot.audioio"/>
+<folder path="/JVstHost/res"/>
+<javaElement handleIdentifier="=JVstHost/src&lt;com.synthbot.audioplugin.vst.vst2{JVstHost20.java"/>
+<javaElement handleIdentifier="=JVstHost/src&lt;com.synthbot.audioplugin.vst{VstVersion.java"/>
+<javaElement handleIdentifier="=JVstHost/src&lt;com.synthbot.audioplugin.vst.vst2{VstPluginCanDo.java"/>
+<javaElement handleIdentifier="=JVstHost/src&lt;com.synthbot.audioplugin.vst.vst2{JVstHostListener.java"/>
+<javaElement handleIdentifier="=JVstHost/src&lt;com.synthbot.audioplugin.vst.vst2{JVstHost23.java"/>
+<javaElement handleIdentifier="=JVstHost/src&lt;com.synthbot.audioplugin.vst.view"/>
+<javaElement handleIdentifier="=JVstHost/src&lt;com.synthbot.audioplugin.vst.vst2{JVstHost24.java"/>
+<javaElement handleIdentifier="=JVstHost/src&lt;com.synthbot.audioio.vst{JVstAudioThread.java"/>
+<javaElement handleIdentifier="=JVstHost/src&lt;com.synthbot.minihost.view"/>
+<javaElement handleIdentifier="=JVstHost/src&lt;com.synthbot.minihost{RandomMiniHost.java"/>
+<javaElement handleIdentifier="=JVstHost/src&lt;com.synthbot.audioplugin.vst.vst2{JVstHost22.java"/>
+<javaElement handleIdentifier="=JVstHost/src&lt;com.synthbot.audioplugin.vst.vst2{JVstHost2.java"/>
+</selectedElements>
 </jardesc>

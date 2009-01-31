@@ -68,8 +68,6 @@ public class RandomMiniHost extends AbstractJVstHostListener {
     audioThread = new JVstAudioThread(vst);
     Thread thread = new Thread(audioThread);
     thread.start();
-    
-    vst.openEditor();
 
     // create a midi note on message
     ShortMessage midiMessage = new ShortMessage();

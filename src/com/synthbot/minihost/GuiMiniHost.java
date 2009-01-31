@@ -29,6 +29,7 @@ import com.synthbot.audioplugin.view.StringGui;
 import com.synthbot.audioplugin.vst.JVstLoadException;
 import com.synthbot.audioplugin.vst.vst2.AbstractJVstHostListener;
 import com.synthbot.audioplugin.vst.vst2.JVstHost2;
+import com.synthbot.minihost.view.JVstMiniHostGui;
 
 public class GuiMiniHost extends AbstractJVstHostListener {
 
