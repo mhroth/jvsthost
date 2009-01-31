@@ -411,12 +411,6 @@ public abstract class JVstHost2 implements JVstViewListener {
   public abstract void openEditor(String frameTitle);
   
   /**
-   * This is a convenience method for <code>openEditor(String frameTitle)</code>.
-   * The results of <code>getEffectName</code> are used as the frame title.
-   */
-  public abstract void openEditor();
-  
-  /**
    * Checks if the editor is currently open.
    * @return  True if the native editor of the plugin is currently open. False otherwise.
    */

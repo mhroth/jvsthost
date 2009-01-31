@@ -65,6 +65,7 @@ typedef struct hostLocalVars {
   double sampleRate; // cache the current sampleRate and blockSize, so that the java object doesn't have to be asked for it every time an audioMaster callback is made (such as for VstTimeInfo pointers).
   int blockSize;
   double tempo;
+  void *nativeEditorWindow;
 };
 
 /**
@@ -436,8 +437,8 @@ VstIntPtr VSTCALLBACK HostCallback (AEffect *effect, VstInt32 opcode, VstInt32 i
                   vpwAudioMasterProcessMidiEvents, 
                   ((jint) vstme->midiData[0]) & 0x000000F0,
                   ((jint) vstme->midiData[0]) & 0x0000000F,
-                  ((jint) vstme->midiData[1]) & 0x000000FF,
-                  ((jint) vstme->midiData[2]) & 0x000000FF);
+                  ((jint) vstme->midiData[1]) & 0x0000007F,
+                  ((jint) vstme->midiData[2]) & 0x0000007F);
               break;
             }
             case kVstSysExType: {
@@ -775,13 +776,14 @@ JNIEXPORT jlong JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost2_loadPlu
   
   // initialise the local variables for the host
   ae->resvd1 = (VstIntPtr) malloc(sizeof(hostLocalVars));
-  ((hostLocalVars *) ae->resvd1)->jVstHost2 = 0;
+  ((hostLocalVars *) ae->resvd1)->jVstHost2 = NULL;
   initHostLocalArrays(ae);
   ((hostLocalVars *) ae->resvd1)->vti = (VstTimeInfo *) malloc(sizeof(VstTimeInfo));
   ((hostLocalVars *) ae->resvd1)->libPtr = libptr;
   ((hostLocalVars *) ae->resvd1)->sampleRate = 0.0;
   ((hostLocalVars *) ae->resvd1)->blockSize = 0;
   ((hostLocalVars *) ae->resvd1)->tempo = DEFAULT_TEMPO;
+  ((hostLocalVars *) ae->resvd1)->nativeEditorWindow = NULL;
 
   return (jlong) ae;
 }
@@ -835,45 +837,63 @@ JNIEXPORT jint JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost2_getVstVe
  * System dependent windowing code
  */
 #if _WIN32
-INT_PTR CALLBACK EditorProc (HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+/*
+ * Returns true if the ERect info has been successfully retrieved and set. False otherwise.
+ * The window is set to a default size of 100 x 100 pixels in case of failure.
+ */
+bool setERectInfo(AEffect *effect, HWND hwnd) {
+  ERect* eRect = NULL;
+  effect->dispatcher (effect, effEditGetRect, 0, 0, &eRect, 0);
+  if (eRect != NULL) {
+    bool result = true;
+    int width = eRect->right - eRect->left;
+    int height = eRect->bottom - eRect->top;
+    if (width < 100) {
+      width = 100;
+      result = false;
+    }
+    if (height < 100) {
+      height = 100;
+      result = false;
+    }
+
+    RECT wRect;
+    SetRect (&wRect, 0, 0, width, height);
+    AdjustWindowRectEx(&wRect, GetWindowLong(hwnd, GWL_STYLE), FALSE, GetWindowLong(hwnd, GWL_EXSTYLE));
+    width = wRect.right - wRect.left;
+    height = wRect.bottom - wRect.top;
+
+    SetWindowPos(hwnd, HWND_TOP, 0, 0, width, height, SWP_NOMOVE);
+    return result;
+  } else {
+    return false;
+  }
+}
+
+INT_PTR CALLBACK EditorProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
   switch(msg) {
     case WM_CREATE: {
       AEffect *effect = (AEffect *) (((CREATESTRUCT *) lParam)->lpCreateParams);
       if (effect != NULL) {
-        JNIEnv *env;
-        jvm->GetEnv((void **)&env, JNI_VERSION);
         SetTimer(hwnd, 1, 40, NULL); // 40ms == 25 frames per second
       
+        JNIEnv *env;
+        jvm->GetEnv((void **)&env, JNI_VERSION);
         env->MonitorEnter(getCachedCallingObject(effect));
 
-        ERect* eRect = NULL;
-        effect->dispatcher (effect, effEditGetRect, 0, 0, &eRect, 0);
-        if (eRect != NULL) {
-          int width = eRect->right - eRect->left;
-          int height = eRect->bottom - eRect->top;
-          if (width < 100) {
-            width = 100;
-          }
-          if (height < 100) {
-            height = 100;
-          }
-
-          RECT wRect;
-          SetRect (&wRect, 0, 0, width, height);
-          AdjustWindowRectEx (&wRect, GetWindowLong (hwnd, GWL_STYLE), FALSE, GetWindowLong (hwnd, GWL_EXSTYLE));
-          width = wRect.right - wRect.left;
-          height = wRect.bottom - wRect.top;
-
-          SetWindowPos (hwnd, HWND_TOP, 0, 0, width, height, SWP_NOMOVE);
-          ShowWindow(hwnd, SW_SHOW);
-          UpdateWindow(hwnd);
-          
-          // put this after effEditGetRect, as some plugin apparently need that???  
-          effect->dispatcher (effect, effEditOpen, 0, 0, hwnd, 0);
-          
-          env->MonitorExit(getCachedCallingObject(effect));
+        // apparently some plugins require effEditGetRect to be called before effEditOpen
+        bool isERectInfoSet = setERectInfo(effect, hwnd);
+        effect->dispatcher (effect, effEditOpen, 0, 0, hwnd, 0);
+        if (!isERectInfoSet) {
+          setERectInfo(effect, hwnd);
         }
+        
+        env->MonitorExit(getCachedCallingObject(effect));
+
+        ShowWindow(hwnd, SW_SHOW);
+        UpdateWindow(hwnd);
+
         return TRUE; // the message was processed
       } else {
         return FALSE;
@@ -900,7 +920,8 @@ INT_PTR CALLBACK EditorProc (HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) 
         JNIEnv *env;
         jvm->GetEnv((void **)&env, JNI_VERSION);
         env->MonitorEnter(getCachedCallingObject(effect));
-        effect->dispatcher (effect, effEditClose, 0, 0, 0, 0);
+        effect->dispatcher(effect, effEditClose, 0, 0, 0, 0);
+        ((hostLocalVars *) effect->resvd1)->nativeEditorWindow = NULL;
         env->MonitorExit(getCachedCallingObject(effect));
       }
       KillTimer(hwnd, 1);
@@ -954,7 +975,7 @@ JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_openEdi
     wndclass.style = CS_HREDRAW | CS_VREDRAW;
     wndclass.lpfnWndProc = (WNDPROC) EditorProc;
     wndclass.cbClsExtra = 0;
-    wndclass.cbWndExtra = sizeof(LONG_PTR); // a pointer to the associated effect is store with the window in order to allow for callbacks in the window messaging loop
+    wndclass.cbWndExtra = sizeof(LONG_PTR); // a pointer to the associated effect is stored with the window in order to allow for callbacks in the window messaging loop
     wndclass.hInstance = GetModuleHandle(NULL);
     wndclass.hIcon = LoadIcon(NULL, IDI_APPLICATION);
     wndclass.hCursor = LoadCursor(NULL, IDC_ARROW);
@@ -970,7 +991,7 @@ JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_openEdi
         "JVstHost Native Editor", 
         frameTitle, 
         WS_SYSMENU, //WS_POPUP | WS_CAPTION | WS_BORDER | WS_SYSMENU | WS_VISIBLE | WS_DLGFRAME | DS_CENTER, //WS_OVERLAPPEDWINDOW | WS_POPUP, 
-        CW_USEDEFAULT, CW_USEDEFAULT, 400, 300,
+        CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
         NULL, 
         NULL, 
         GetModuleHandle(NULL), 
@@ -980,6 +1001,9 @@ JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_openEdi
 
     // set the pointer to the effect in the window
     SetWindowLongPtr(hwnd, 0, (LONG_PTR) effect);
+    
+    // Set the pointer to the window in resvd1 so that a close message can be sent to it later
+    ((hostLocalVars *) effect->resvd1)->nativeEditorWindow = hwnd;
     
     MSG msg;
     while(GetMessage(&msg, NULL, 0, 0) != NULL) {
@@ -1056,10 +1080,15 @@ JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_closeEd
   (JNIEnv *env, jclass jclazz, jlong ae) {
 
   AEffect *effect = (AEffect *)ae;
-  effect->dispatcher (effect, effEditClose, 0, 0, 0, 0);
 
   #if _WIN32
-  
+    // post a WM_DESTROY message to the native window's message queue, telling the native window to close
+    HWND hwnd = (HWND) ((hostLocalVars *) effect->resvd1)->nativeEditorWindow;
+    if (hwnd != NULL) {
+      PostMessage(
+          hwnd, WM_DESTROY,
+          NULL, NULL);
+    }
   #elif TARGET_API_MAC_CARBON
     jfieldID fid = env->GetFieldID(vpwClass, "osxWindow", "J");
     WindowRef window = (WindowRef) env->GetLongField((jobject) effect->resvd1, fid);

@@ -89,6 +89,9 @@ public class JVstHost20 extends JVstHost2 {
   
   @Override
   public synchronized void turnOffAndUnloadPlugin() {
+    if (isEditorOpen()) {
+      closeEditor();
+    }
     turnOff();
     unloadPlugin(vstPluginPtr);
     isNativeComponentLoaded = false;
@@ -365,11 +368,6 @@ public class JVstHost20 extends JVstHost2 {
   protected static native int acceptsProgramsAsChunks(long pluginPtr);
   
   @Override
-  public synchronized void openEditor() {
-    openEditor(getEffectName());
-  }
-  
-  @Override
   public synchronized void openEditor(final String frameTitle) {
     assertNativeComponentIsLoaded();
     assertHasNativeEditor();
@@ -395,9 +393,9 @@ public class JVstHost20 extends JVstHost2 {
   @Override
   public synchronized void closeEditor() {
     assertNativeComponentIsLoaded();
-    assertHasNativeEditor();
-    System.err.println("closeNativeEditor is not yet implemented.");
-    //closeEditor(vstPluginPtr);
+    if (isEditorOpen()) {
+      closeEditor(vstPluginPtr);      
+    }
   }
   protected static native void closeEditor(long pluginPtr);
   
