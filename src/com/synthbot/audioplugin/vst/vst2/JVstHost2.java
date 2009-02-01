@@ -407,8 +407,9 @@ public abstract class JVstHost2 implements JVstViewListener {
    * NOTE: This method is currently only implemented on Windows.
    * @param frameTitle  The title of the native editor frame. This can be used to uniquely identify individual windows.
    * @throws IllegalStateException  Thrown if the plugin has no native editor. Check to see if the plugin has a native editor with <code>hasEditor</code>.
+   * @throws NullPointerException  Thrown if <code>frameTitle</code> is null.
    */
-  public abstract void openEditor(String frameTitle);
+  public abstract void openEditor(final String frameTitle);
   
   /**
    * Checks if the editor is currently open.
