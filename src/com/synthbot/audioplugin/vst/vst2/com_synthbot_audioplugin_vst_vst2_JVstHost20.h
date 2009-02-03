@@ -236,8 +236,16 @@ JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_setProg
  * Method:    getProgramName
  * Signature: (J)Ljava/lang/String;
  */
-JNIEXPORT jstring JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_getProgramName
+JNIEXPORT jstring JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_getProgramName__J
   (JNIEnv *, jclass, jlong);
+
+/*
+ * Class:     com_synthbot_audioplugin_vst_vst2_JVstHost20
+ * Method:    getProgramName
+ * Signature: (IJ)Ljava/lang/String;
+ */
+JNIEXPORT jstring JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_getProgramName__IJ
+  (JNIEnv *, jclass, jint, jlong);
 
 /*
  * Class:     com_synthbot_audioplugin_vst_vst2_JVstHost20

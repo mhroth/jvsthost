@@ -316,7 +316,19 @@ public abstract class JVstHost2 implements JVstViewListener {
    */
   public abstract int getProgram();
   
+  /**
+   * Returns the name of the current program.
+   * @return  The name of the current program.
+   */
   public abstract String getProgramName();
+  
+  /**
+   * Returns the name of the program at the given index.
+   * @param index  The program index to get the name of.
+   * @return  The name of the specified program.
+   * @throws IndexOutOfBoundsException  Thrown if the given index exceeds the number of programs.
+   */
+  public abstract String getProgramName(int index);
 
   public abstract void setProgramName(String name);
   
