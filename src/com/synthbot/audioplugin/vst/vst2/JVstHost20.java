@@ -99,6 +99,9 @@ public class JVstHost20 extends JVstHost2 {
   
   @Override
   public synchronized void queueMidiMessage(ShortMessage message) {
+    if (message == null) {
+      throw new NullPointerException("Queued midi message may not be null.");
+    }
     queuedMidiMessages.add(message);
   }
   
