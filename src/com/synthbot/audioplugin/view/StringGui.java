@@ -219,8 +219,7 @@ public class StringGui extends JFrame {
     if (vst.numPrograms() > 0) {
       String[] progNames = new String[vst.numPrograms()];
       for (int i = 0; i < progNames.length; i++) {
-        vst.setProgram(i);
-        progNames[i] = vst.getProgramName() + ":" + i;
+        progNames[i] = vst.getProgramName(i) + ":" + i;
       }
       vst.setProgram(0);
       

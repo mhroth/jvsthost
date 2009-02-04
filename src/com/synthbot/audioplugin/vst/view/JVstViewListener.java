@@ -72,7 +72,7 @@ public interface JVstViewListener {
   /**
    * Get the name of the current program/preset.
    */
-  public String getProgramName();
+  public String getProgramName(int index);
   
   public String getVendorName();
   

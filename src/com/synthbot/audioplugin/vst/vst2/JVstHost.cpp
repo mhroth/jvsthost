@@ -1457,12 +1457,23 @@ JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_resume
   effect->dispatcher (effect, effMainsChanged, 0, 1, 0, 0);
 }
 
-JNIEXPORT jstring JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_getProgramName
+JNIEXPORT jstring JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_getProgramName__J
   (JNIEnv *env, jclass jclazz, jlong ae) {
 
   AEffect *effect = (AEffect *)ae;
   char *name = (char *)malloc(sizeof(char) * kVstMaxProgNameLen);
   effect->dispatcher (effect, effGetProgramName, 0, 0, name, 0);
+  jstring jname = env->NewStringUTF(name);
+  free(name);
+  return jname;
+}
+
+JNIEXPORT jstring JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_getProgramName__IJ
+  (JNIEnv *env, jclass jclazz, jint index, jlong ae) {
+
+  AEffect *effect = (AEffect *)ae;
+  char *name = (char *)malloc(sizeof(char) * kVstMaxProgNameLen);
+  effect->dispatcher (effect, effGetProgramNameIndexed, (VstInt32) index, 0, name, 0);
   jstring jname = env->NewStringUTF(name);
   free(name);
   return jname;

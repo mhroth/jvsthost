@@ -441,6 +441,17 @@ public class JVstHost20 extends JVstHost2 {
     return getProgramName(vstPluginPtr);
   }
   protected static native String getProgramName(long pluginPtr);
+  
+  @Override
+  public synchronized String getProgramName(int index) {
+    assertNativeComponentIsLoaded();
+    if (index < 0 || index >= numPrograms) {
+      throw new IndexOutOfBoundsException("This plugin has only " + numPrograms + " programs. Program index " + index + " must be between 0 and " + numPrograms + "."); 
+    }
+    return getProgramName(index, vstPluginPtr);
+  }
+  protected static native String getProgramName(int index, long pluginPtr);
+  
 
   @Override
   public synchronized void setProgramName(String name) {
