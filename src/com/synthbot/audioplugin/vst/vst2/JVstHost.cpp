@@ -1352,6 +1352,13 @@ JNIEXPORT jfloat JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_getPa
   return effect->getParameter(effect, index);
 }
 
+JNIEXPORT jint JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_isParameterAutomatable
+  (JNIEnv *env, jclass clazz, jint index, jlong ae) {
+
+  AEffect *effect = (AEffect *)ae;
+  return effect->dispatcher (effect, effCanBeAutomated, index, 0, 0, 0);
+}
+
 JNIEXPORT jstring JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_getEffectName
   (JNIEnv *env, jclass jclazz, jlong ae) {
   

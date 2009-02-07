@@ -216,6 +216,14 @@ public abstract class JVstHost2 implements JVstViewListener {
   public abstract void setParameter(int index, float value);
   
   /**
+   * Indicates if a parameter can be automated.
+   * @param index  Parameter index.
+   * @return  True if the parameter is automatable. False otherwise.
+   * @throws IndexOutOfBoundsException  Thrown if the parameter index is < 0 or >= numParameters.
+   */
+  public abstract boolean isParameterAutomatable(int index);
+  
+  /**
    * Queues the given midi message until the next time that a <code>process</code> variant is called.
    * The queue is cleared upon the execution of <code>process</code>.
    * @param message  A MIDI message to be queued.

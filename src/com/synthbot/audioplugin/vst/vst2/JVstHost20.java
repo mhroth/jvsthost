@@ -219,6 +219,16 @@ public class JVstHost20 extends JVstHost2 {
   protected static native float getParameter(int index, long pluginPtr);
   
   @Override
+  public synchronized boolean isParameterAutomatable(int index) {
+    assertNativeComponentIsLoaded();
+    if (index < 0 || index >= numParameters) {
+      throw new IndexOutOfBoundsException("Parameter index, " + index + ", must be between 0 and " + numParameters);
+    }
+    return (isParameterAutomatable(index, vstPluginPtr) != 0);
+  }
+  protected static native int isParameterAutomatable(int index, long vstPluginPtr);
+  
+  @Override
   public synchronized String getParameterName(int index) {
     assertNativeComponentIsLoaded();
     if (index < 0 || index >= numParameters) {

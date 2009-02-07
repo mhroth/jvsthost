@@ -54,6 +54,14 @@ JNIEXPORT jint JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_canDo
  */
 JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_setParameter
   (JNIEnv *, jclass, jint, jfloat, jlong);
+	
+/*
+ * Class:     com_synthbot_audioplugin_vst_vst2_JVstHost20
+ * Method:    isParameterAutomatable
+ * Signature: (IJ)I
+ */
+JNIEXPORT jint JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_isParameterAutomatable
+  (JNIEnv *, jclass, jint, jlong);
 
 /*
  * Class:     com_synthbot_audioplugin_vst_vst2_JVstHost20

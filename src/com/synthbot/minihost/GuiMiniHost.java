@@ -21,15 +21,14 @@
 
 package com.synthbot.minihost;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-
 import com.synthbot.audioio.vst.JVstAudioThread;
 import com.synthbot.audioplugin.view.StringGui;
 import com.synthbot.audioplugin.vst.JVstLoadException;
 import com.synthbot.audioplugin.vst.vst2.AbstractJVstHostListener;
 import com.synthbot.audioplugin.vst.vst2.JVstHost2;
-import com.synthbot.minihost.view.JVstMiniHostGui;
+
+import java.io.File;
+import java.io.FileNotFoundException;
 
 public class GuiMiniHost extends AbstractJVstHostListener {
 
@@ -71,8 +70,10 @@ public class GuiMiniHost extends AbstractJVstHostListener {
     // create and display a StringGui for controlling the vst
     gui = new StringGui(vst);
     gui.setVisible(true);
-
-    vst.openEditor(vst.getEffectName());
+    
+    if (vst.hasEditor()) {
+      vst.openEditor(vst.getEffectName());    	
+    }
   }
   
   @Override
