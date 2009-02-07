@@ -374,12 +374,16 @@ public class JVstHost20 extends JVstHost2 {
     }
     assertNativeComponentIsLoaded();
     assertHasNativeEditor();
-    
+        
     if (editorThread == null) {
+      final JVstHost2 thisJVstHost = this;
       editorThread = new Thread(new Runnable() {
         public void run() {
           openEditor(frameTitle, vstPluginPtr); // this method blocks while the native window is open
           editorThread = null;
+          synchronized(thisJVstHost) {
+            thisJVstHost.notify(); // notify all waiting threads (such as one waiting in closeEditor), that the native editor is now closed
+          }
         }
       });
       editorThread.setPriority(Thread.MIN_PRIORITY);
@@ -398,7 +402,14 @@ public class JVstHost20 extends JVstHost2 {
   public synchronized void closeEditor() {
     assertNativeComponentIsLoaded();
     if (isEditorOpen()) {
-      closeEditor(vstPluginPtr);      
+      closeEditor(vstPluginPtr);
+      while (isEditorOpen()) {
+        try {
+          wait(); // wait for the editorThread to notify this JVstHost2 object that it has completed
+        } catch (InterruptedException ie) {
+          // do nothing, just wait again
+        }
+      }
     }
   }
   protected static native void closeEditor(long pluginPtr);

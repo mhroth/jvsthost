@@ -430,9 +430,10 @@ public abstract class JVstHost2 implements JVstViewListener {
   public abstract boolean isEditorOpen();
   
   /**
-   * Close the native editor window.
-   * NOTE: This method is not yet implemented.
-   * @throws IllegalStateException  Thrown if the plugin has no native editor. Check to see if the plugin has a native editor with <code>hasEditor</code>.
+   * Close the native editor window. This method does nothing if the plugin has no native editor or
+   * if the native editor window is already closed. Note that this method blocks until the native
+   * editor thread has returned and signaled that the window is closed.
+   * NOTE: This method is currently only implemented on Windows. 
    */
   public abstract void closeEditor();
   
