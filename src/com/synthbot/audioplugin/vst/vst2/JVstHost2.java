@@ -219,6 +219,7 @@ public abstract class JVstHost2 implements JVstViewListener {
    * Queues the given midi message until the next time that a <code>process</code> variant is called.
    * The queue is cleared upon the execution of <code>process</code>.
    * @param message  A MIDI message to be queued.
+   * @throws NullPointerException  Thrown if the queued midi message is null.
    */
   public abstract void queueMidiMessage(ShortMessage message);
   
