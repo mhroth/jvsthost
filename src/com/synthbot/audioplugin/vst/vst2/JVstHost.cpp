@@ -501,6 +501,15 @@ VstIntPtr VSTCALLBACK HostCallback (AEffect *effect, VstInt32 opcode, VstInt32 i
     
     // [index]: new width [value]: new height [return value]: 1 if supported
     case audioMasterSizeWindow: {
+      #if _WIN32
+        if (isHostLocalVarsValid(effect)) {
+          HWND hwnd = (HWND) ((hostLocalVars *) effect->resvd1)->nativeEditorWindow;
+          if (hwnd != NULL) {
+            setEditorWindowSizeAndPosition(hwnd, (int) index, (int) value);
+            return 1;
+          }
+        }
+      #endif
       return 0; // not supported
     }
     
@@ -882,17 +891,20 @@ bool setERectInfo(AEffect *effect, HWND hwnd) {
       result = false;
     }
 
-    RECT wRect;
-    SetRect (&wRect, 0, 0, width, height);
-    AdjustWindowRectEx(&wRect, GetWindowLong(hwnd, GWL_STYLE), FALSE, GetWindowLong(hwnd, GWL_EXSTYLE));
-    width = wRect.right - wRect.left;
-    height = wRect.bottom - wRect.top;
-
-    SetWindowPos(hwnd, HWND_TOP, 0, 0, width, height, SWP_NOMOVE);
+    setEditorWindowSizeAndPosition(effect, hwnd);
     return result;
   } else {
     return false;
   }
+}
+
+void setEditorWindowSizeAndPosition(HWND hwnd, int width, int height) {
+  RECT wRect;
+  SetRect (&wRect, 0, 0, width, height);
+  AdjustWindowRectEx(&wRect, GetWindowLong(hwnd, GWL_STYLE), FALSE, GetWindowLong(hwnd, GWL_EXSTYLE));
+  width = wRect.right - wRect.left;
+  height = wRect.bottom - wRect.top;
+  SetWindowPos(hwnd, HWND_TOP, 0, 0, width, height, SWP_NOMOVE);
 }
 
 INT_PTR CALLBACK EditorProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
