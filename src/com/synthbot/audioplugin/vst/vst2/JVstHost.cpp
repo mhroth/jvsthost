@@ -1680,14 +1680,19 @@ JNIEXPORT jint JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_getTail
   return effect->dispatcher(effect, effGetTailSize, 0, 0, 0, 0);
 }
 
-JNIEXPORT jobject JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_getOutputProperties
-  (JNIEnv *env, jclass clazz, jint index, jlong ae) {
+JNIEXPORT jobject JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_getPinProperties
+  (JNIEnv *env, jclass clazz, jint index, jboolean isInput, jlong ae) {
   
   AEffect *effect = (AEffect *) ae;
   VstPinProperties *vpp = (VstPinProperties *) malloc(sizeof(VstPinProperties));
   jclass classVstPinProperties = env->FindClass("com/synthbot/audioplugin/vst/vst2/VstPinProperties");
   jobject jvstPinProperties;
-  int isSupported = effect->dispatcher(effect, effGetOutputProperties, index, 0, vpp, 0);
+  int isSupported = 0;
+  if (isInput == JNI_TRUE) {
+    isSupported = effect->dispatcher(effect, effGetInputProperties, index, 0, vpp, 0);
+  } else {
+    isSupported = effect->dispatcher(effect, effGetOutputProperties, index, 0, vpp, 0);
+  }
   if (isSupported == 1) {
     jvstPinProperties = env->NewObject(
         classVstPinProperties,

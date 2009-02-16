@@ -72,9 +72,11 @@ public class GuiMiniHost extends AbstractJVstHostListener {
     gui = new StringGui(vst);
     gui.setVisible(true);
     
+    /*
     if (vst.hasEditor()) {
       vst.openEditor(vst.getEffectName());    	
     }
+    */
   }
   
   @Override

@@ -563,13 +563,26 @@ public class JVstHost20 extends JVstHost2 {
   protected static native void setBypass(boolean bypass, long pluginPtr);
   
   @Override
+  public synchronized VstPinProperties getInputProperties(int index) {
+    if (index < 0 || index >= numInputs) {
+      throw new IndexOutOfBoundsException();
+    }
+    return getPinProperties(index, true, vstPluginPtr);
+  }
+  
+  @Override
   public synchronized VstPinProperties getOutputProperties(int index) {
     if (index < 0 || index >= numOutputs) {
       throw new IndexOutOfBoundsException();
     }
-    return getOutputProperties(index, vstPluginPtr);
+    return getPinProperties(index, false, vstPluginPtr);
   }
-  protected static native VstPinProperties getOutputProperties(int index, long pluginPtr);
+  
+  /**
+   * @param isInput  <code>true</code> if the index refers to an input. <code>false</code> if it 
+   * refers to an output.
+   */
+  protected static native VstPinProperties getPinProperties(int index, boolean isInput, long pluginPtr);
   
   /*
    * Native plugin callbacks.

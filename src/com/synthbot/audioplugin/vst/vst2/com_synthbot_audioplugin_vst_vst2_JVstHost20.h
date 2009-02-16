@@ -321,11 +321,11 @@ JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_setBypa
 
 /*
  * Class:     com_synthbot_audioplugin_vst_vst2_JVstHost20
- * Method:    getOutputProperties
- * Signature: (IJ)Lcom/synthbot/audioplugin/vst/vst2/VstPinProperties;
+ * Method:    getPinProperties
+ * Signature: (IZJ)Lcom/synthbot/audioplugin/vst/vst2/VstPinProperties;
  */
-JNIEXPORT jobject JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_getOutputProperties
-  (JNIEnv *, jclass, jint, jlong);
+JNIEXPORT jobject JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_getPinProperties
+  (JNIEnv *, jclass, jint, jboolean, jlong);
 
 #ifdef __cplusplus
 }

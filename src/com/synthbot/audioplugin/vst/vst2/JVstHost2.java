@@ -490,11 +490,20 @@ public abstract class JVstHost2 implements JVstViewListener {
   public abstract void setBypass(boolean bypass);
   
   /**
+   * Returns a <code>VstPinProperties</code> object with details on the requested input. Not all
+   * plugins support this method. Be sure to check the output with <code>VstPinProperties.isValid</code>
+   * before using any of its methods.
+   * @param index  The requested input index.
+   * @throws IndexOutOfBoundsException  Thrown if the given index does not identify a valid input.
+   */
+  public abstract VstPinProperties getInputProperties(int index);
+  
+  /**
    * Returns a <code>VstPinProperties</code> object with details on the requested output. Not all
    * plugins support this method. Be sure to check the output with <code>VstPinProperties.isValid</code>
    * before using any of its methods.
    * @param index  The requested output index.
-   * @throws IndexOutOfBoundsException  Thrown if the given index does not idenfity a valid output.
+   * @throws IndexOutOfBoundsException  Thrown if the given index does not identify a valid output.
    */
   public abstract VstPinProperties getOutputProperties(int index);
   
