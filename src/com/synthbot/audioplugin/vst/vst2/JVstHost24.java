@@ -21,11 +21,11 @@
 
 package com.synthbot.audioplugin.vst.vst2;
 
+import com.synthbot.audioplugin.vst.VstVersion;
+
 import java.io.File;
 
-import javax.sound.midi.ShortMessage;
-
-import com.synthbot.audioplugin.vst.VstVersion;
+import javax.sound.midi.MidiMessage;
 
 public class JVstHost24 extends JVstHost23 {
   
@@ -84,12 +84,12 @@ public class JVstHost24 extends JVstHost23 {
       throw new IllegalArgumentException("Block size must be non-negative: " + blockSize + " < 0");
     }
     
-    ShortMessage[] messages = queuedMidiMessages.toArray(new ShortMessage[0]);
+    MidiMessage[] messages = queuedMidiMessages.toArray(new MidiMessage[0]);
     queuedMidiMessages.clear();
     
     processDoubleReplacing(messages, inputs, outputs, blockSize, vstPluginPtr);
   }
-  protected static native void processDoubleReplacing(ShortMessage[] messages, double[][] inputs, double[][] outputs, int blockSize, long pluginPtr);
+  protected static native void processDoubleReplacing(MidiMessage[] messages, double[][] inputs, double[][] outputs, int blockSize, long pluginPtr);
   
   /**
    * Determines if this plugin supports <code>processDoubleReplacing</code>.

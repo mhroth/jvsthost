@@ -26,6 +26,7 @@ import com.synthbot.audioplugin.view.StringGui;
 import com.synthbot.audioplugin.vst.JVstLoadException;
 import com.synthbot.audioplugin.vst.vst2.AbstractJVstHostListener;
 import com.synthbot.audioplugin.vst.vst2.JVstHost2;
+import com.synthbot.minihost.view.JVstMiniHostGui;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -44,7 +45,7 @@ public class GuiMiniHost extends AbstractJVstHostListener {
 
     // start the main gui
     // also serves to start the gui thread which is needed to allow later guis to open
-    //JVstMiniHostGui miniHostGui = new JVstMiniHostGui();
+    JVstMiniHostGui miniHostGui = new JVstMiniHostGui();
     
     // load the vst
     try {

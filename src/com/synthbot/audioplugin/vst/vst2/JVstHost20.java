@@ -21,14 +21,16 @@
 
 package com.synthbot.audioplugin.vst.vst2;
 
+import com.synthbot.audioplugin.vst.VstVersion;
+
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
 import javax.sound.midi.InvalidMidiDataException;
+import javax.sound.midi.MidiMessage;
 import javax.sound.midi.ShortMessage;
-
-import com.synthbot.audioplugin.vst.VstVersion;
+import javax.sound.midi.SysexMessage;
 
 public class JVstHost20 extends JVstHost2 {
   
@@ -43,7 +45,7 @@ public class JVstHost20 extends JVstHost2 {
   protected volatile Thread editorThread; // volatile because the variable can be get/set by either the vst thread or the editor thread
   protected boolean isTurnedOff;
   
-  protected final List<ShortMessage> queuedMidiMessages;
+  protected final List<MidiMessage> queuedMidiMessages;
   
   protected final List<JVstHostListener> hostListeners;
   
@@ -59,7 +61,7 @@ public class JVstHost20 extends JVstHost2 {
     hasNativeEditor = (hasEditor(vstPluginPtr) != 0);
     isTurnedOff = true;
     
-    queuedMidiMessages = new ArrayList<ShortMessage>();
+    queuedMidiMessages = new ArrayList<MidiMessage>();
     
     hostListeners = new ArrayList<JVstHostListener>();
   }
@@ -95,6 +97,14 @@ public class JVstHost20 extends JVstHost2 {
     turnOff();
     unloadPlugin(vstPluginPtr);
     isNativeComponentLoaded = false;
+  }
+  
+  @Override
+  public synchronized void queueMidiMessage(SysexMessage message) {
+    if (message == null) {
+      throw new NullPointerException("Queued midi message may not be null.");
+    }
+    queuedMidiMessages.add(message);
   }
   
   @Override
@@ -138,12 +148,12 @@ public class JVstHost20 extends JVstHost2 {
       throw new IllegalArgumentException("Block size must be non-negative: " + blockSize + " < 0");
     }
 
-    ShortMessage[] messages = queuedMidiMessages.toArray(new ShortMessage[0]);
+    MidiMessage[] messages = queuedMidiMessages.toArray(new MidiMessage[0]);
     queuedMidiMessages.clear();
     
     processReplacing(messages, inputs, outputs, blockSize, vstPluginPtr);
   }
-  protected static native void processReplacing(ShortMessage[] messages, float[][] inputs, float[][] outputs, int blockSize, long pluginPtr);
+  protected static native void processReplacing(MidiMessage[] messages, float[][] inputs, float[][] outputs, int blockSize, long pluginPtr);
   
   @Override
   public synchronized boolean canReplacing() {
@@ -181,12 +191,12 @@ public class JVstHost20 extends JVstHost2 {
       throw new IllegalArgumentException("Block size must be non-negative: " + blockSize + " < 0");
     }
     
-    ShortMessage[] messages = queuedMidiMessages.toArray(new ShortMessage[0]);
+    MidiMessage[] messages = queuedMidiMessages.toArray(new MidiMessage[0]);
     queuedMidiMessages.clear();
     
     process(messages, inputs, outputs, blockSize, vstPluginPtr);
   }
-  protected static native void process(ShortMessage[] messages, float[][] inputs, float[][] outputs, int blockSize, long pluginPtr);
+  protected static native void process(MidiMessage[] messages, float[][] inputs, float[][] outputs, int blockSize, long pluginPtr);
   
   @Override
   public synchronized boolean canDo(VstPluginCanDo canDo) {
@@ -388,7 +398,7 @@ public class JVstHost20 extends JVstHost2 {
     assertNativeComponentIsLoaded();
     assertHasNativeEditor();
         
-    if (editorThread == null) {
+    if (!isEditorOpen()) {
       final JVstHost2 thisJVstHost = this;
       editorThread = new Thread(new Runnable() {
         public void run() {

@@ -44,12 +44,14 @@
 // GLOBAL VARIABLES
 JavaVM *jvm;
 jclass vpwClass;
+jclass midiMessageClass;
 jmethodID vpwAudioMasterProcessMidiEvents;
 jmethodID vpwAudioMasterIoChanged;
 jmethodID vpwAudioMasterAutomate;
 jmethodID vpwAudioMasterBeginEdit;
 jmethodID vpwAudioMasterEndEdit;
 jmethodID getPluginDirectory;
+jmethodID mmGetMessage;
 
 /**
  * A struct to hold locally cached variables for the host
@@ -124,8 +126,12 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *ur_jvm, void *reserved) {
   
   JNIEnv *env;
   jvm->GetEnv((void **)&env, JNI_VERSION);
+  
   jclass javaClass = env->FindClass("com/synthbot/audioplugin/vst/vst2/JVstHost2");
   vpwClass = (jclass) env->NewWeakGlobalRef(javaClass);
+  
+  javaClass = env->FindClass("javax/sound/midi/MidiMessage");
+  midiMessageClass = (jclass) env->NewWeakGlobalRef(javaClass);
 
   vpwAudioMasterProcessMidiEvents = env->GetMethodID(vpwClass, "audioMasterProcessMidiEvents", "(IIII)V");
   vpwAudioMasterIoChanged = env->GetMethodID(vpwClass, "audioMasterIoChanged", "(IIII)V");
@@ -133,6 +139,7 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *ur_jvm, void *reserved) {
   vpwAudioMasterBeginEdit = env->GetMethodID(vpwClass, "audioMasterBeginEdit", "(I)V");
   vpwAudioMasterEndEdit = env->GetMethodID(vpwClass, "audioMasterEndEdit", "(I)V");
   //getPluginDirectory = env->GetMethodID(vpwClass, "getPluginDirectory", "()Ljava/lang/String;");
+  mmGetMessage = env->GetMethodID(midiMessageClass, "getMessage", "()[B");
   
   return JNI_VERSION;
 }
@@ -141,6 +148,7 @@ JNIEXPORT void JNICALL JNI_OnUnload(JavaVM *jvm, void *reserved) {
   JNIEnv *env;
   jvm->GetEnv((void **)&env, JNI_VERSION);
   env->DeleteWeakGlobalRef(vpwClass);
+  env->DeleteWeakGlobalRef(midiMessageClass);
 }
 
 void opcode2string(VstInt32 opcode, VstIntPtr value, JNIEnv *env) {
@@ -1104,13 +1112,6 @@ JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_closeEd
   #endif
 }
 
-JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_editIdle
-  (JNIEnv *env, jclass jclazz, jlong ae) {
-  
-  AEffect *effect = (AEffect *) ae;
-  effect->dispatcher(effect, effEditIdle, 0, 0, 0, 0);
-}
-
 /**
  * Sends the midi messages to the vst via effProcessEvents, and returns
  * a pointer to the VstEvents struct. This should be freed /after/ the
@@ -1120,45 +1121,56 @@ VstEvents *setMidiEvents(JNIEnv *env, jobjectArray midiMessages, AEffect* effect
 
   // set up the vst events data structures
   int numMessages = 0;
-  if (midiMessages != NULL) {
-    numMessages = env->GetArrayLength(midiMessages);
-  }
-  jobject shortMessage;
-  jclass shortMessageClass = env->FindClass("javax/sound/midi/ShortMessage");
-  jmethodID getCommand = env->GetMethodID(shortMessageClass, "getCommand", "()I");
-  jmethodID getChannel = env->GetMethodID(shortMessageClass, "getChannel", "()I");
-  jmethodID getData1 = env->GetMethodID(shortMessageClass, "getData1", "()I");
-  jmethodID getData2 = env->GetMethodID(shortMessageClass, "getData2", "()I");
+  numMessages = env->GetArrayLength(midiMessages);
+  jobject midiMessage;
   VstEvents *vstes;
-  if(numMessages <= 2) {
+  if (numMessages <= 2) {
     vstes = (VstEvents *) malloc(sizeof(VstEvent));
   } else {
     vstes = (VstEvents *) malloc(sizeof(VstEvents) + (numMessages-2)*sizeof(VstEvent *));
   }
   vstes->numEvents = numMessages;
   vstes->reserved = NULL;
+  VstEvent *vste;
   VstMidiEvent *vstme;
+  VstMidiSysexEvent *vstmse;
+  jbyteArray jmessageArray;
+  unsigned char *messageArray;
   for(int i = 0; i < numMessages; i++) {
-    shortMessage = env->GetObjectArrayElement(midiMessages, i);
+    midiMessage = env->GetObjectArrayElement(midiMessages, i);
+    jmessageArray = (jbyteArray) env->CallObjectMethod(midiMessage, mmGetMessage);
+    messageArray = (unsigned char *) env->GetPrimitiveArrayCritical(jmessageArray, NULL);
     
-    vstme = (VstMidiEvent *) malloc(sizeof(VstMidiEvent));
-    vstme->type = kVstMidiType;             //< #kVstMidiType
-    vstme->byteSize = sizeof(VstMidiEvent); //< sizeof (VstMidiEvent)
-    vstme->deltaFrames = 0;                 //< sample frames related to the current block start sample position
-    vstme->flags = 0;                       //< @see VstMidiEventFlags
-    vstme->noteLength = 0;                  //< (in sample frames) of entire note, if available, else 0
-    vstme->noteOffset = 0;                  //< offset (in sample frames) into note from note start if available, else 0
-    vstme->midiData[0]  = (char) (env->CallIntMethod(shortMessage, getCommand)) & 0xF0;
-    vstme->midiData[0] |= (char) (env->CallIntMethod(shortMessage, getChannel)) & 0x0F;
-    vstme->midiData[1]  = (char) (env->CallIntMethod(shortMessage, getData1)) & 0x7F; // the note
-    vstme->midiData[2]  = (char) (env->CallIntMethod(shortMessage, getData2)) & 0x7F; // velocity
-    vstme->midiData[3]  = (char) 0;
-    vstme->detune = 0;                      //< -64 to +63 cents; for scales other than 'well-tempered' ('microtuning')
-    vstme->noteOffVelocity = 0;             //< Note Off Velocity [0, 127]
-    vstme->reserved1 = 0;                   //< zero (Reserved for future use)
-    vstme->reserved2 = 0;                   //< zero (Reserved for future use)
+    vste = (VstEvent *) malloc(sizeof(VstEvent));
+
+    if (messageArray[0] == 0xF0) { // status byte == the System Exclusive flag
+      vstmse = (VstMidiSysexEvent *) vste;
+      vstmse->type = kVstSysExType;
+      vstmse->byteSize = sizeof(VstMidiSysexEvent);
+      vstmse->deltaFrames = 0;
+      vstmse->flags = 0;
+      vstmse->resvd1 = (VstIntPtr) jmessageArray;
+      vstmse->sysexDump = (char *) (messageArray+1); // the first byte of messageArray is the status byte, which we already recorded
+      vstmse->resvd2 = 0;
+      
+    } else {      
+      vstme = (VstMidiEvent *) vste;
+      vstme->type = kVstMidiType;             //< #kVstMidiType
+      vstme->byteSize = sizeof(VstMidiEvent); //< sizeof (VstMidiEvent)
+      vstme->deltaFrames = 0;                 //< sample frames related to the current block start sample position
+      vstme->flags = 0;                       //< @see VstMidiEventFlags
+      vstme->noteLength = 0;                  //< (in sample frames) of entire note, if available, else 0
+      vstme->noteOffset = 0;                  //< offset (in sample frames) into note from note start if available, else 0
+      memset(vstme->midiData, 0, 4);          // clear the midiData array (4 bytes)
+      memcpy(vstme->midiData, messageArray, env->GetArrayLength(jmessageArray)); // set the midiData array
+      vstme->detune = 0;                      //< -64 to +63 cents; for scales other than 'well-tempered' ('microtuning')
+      vstme->noteOffVelocity = 0;             //< Note Off Velocity [0, 127]
+      vstme->reserved1 = 0;                   //< zero (Reserved for future use)
+      vstme->reserved2 = 0;                   //< zero (Reserved for future use)
+      env->ReleasePrimitiveArrayCritical(jmessageArray, messageArray, JNI_ABORT);
+    }
     
-    vstes->events[i] = (VstEvent *)vstme;
+    vstes->events[i] = vste;
   }
   
   // send the events to the vst
@@ -1170,8 +1182,18 @@ VstEvents *setMidiEvents(JNIEnv *env, jobjectArray midiMessages, AEffect* effect
 /**
  * Frees a VstEvents struct.
  */
-void freeMidiEvents(VstEvents *vstes) {
+void freeMidiEvents(VstEvents *vstes, JNIEnv *env) {
+  VstMidiSysexEvent *vstmse;
   for(int i = 0; i < vstes->numEvents; i++) {
+    if (vstes->events[i]->type == kVstSysExType) {
+      vstmse = (VstMidiSysexEvent *) vstes->events[i];
+      /*
+       * sysexDump-1 to account for the fact that the message array starts with the status byte,
+       * which had been previously accounted for. sysexDump was assigned to the first "message"
+       * part of the messageArray. 
+       */
+      env->ReleasePrimitiveArrayCritical((jbyteArray) vstmse->resvd1, vstmse->sysexDump-1, JNI_ABORT);
+    }
     free(vstes->events[i]);
   }
   free(vstes);
@@ -1224,7 +1246,7 @@ JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_process
         0);
   }
 
-  freeMidiEvents(vstes);
+  freeMidiEvents(vstes, env);
 }
 
 JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost24_processDoubleReplacing
@@ -1276,7 +1298,7 @@ JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost24_process
 
   free(cinputs);
   free(coutputs);
-  freeMidiEvents(vstes);
+  freeMidiEvents(vstes, env);
 }
 
 JNIEXPORT jint JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost24_canDoubleReplacing
@@ -1334,7 +1356,7 @@ JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_process
 
   free(cinputs);
   free(coutputs);
-  freeMidiEvents(vstes);
+  freeMidiEvents(vstes, env);
 }
 
 

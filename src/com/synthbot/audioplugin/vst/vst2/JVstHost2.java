@@ -21,14 +21,15 @@
 
 package com.synthbot.audioplugin.vst.vst2;
 
+import com.synthbot.audioplugin.vst.JVstLoadException;
+import com.synthbot.audioplugin.vst.VstVersion;
+import com.synthbot.audioplugin.vst.view.JVstViewListener;
+
 import java.io.File;
 import java.io.FileNotFoundException;
 
 import javax.sound.midi.ShortMessage;
-
-import com.synthbot.audioplugin.vst.JVstLoadException;
-import com.synthbot.audioplugin.vst.VstVersion;
-import com.synthbot.audioplugin.vst.view.JVstViewListener;
+import javax.sound.midi.SysexMessage;
 
 /**
  * JVstHost2 is an abstract class which generally defines the interface of a VST 2.x plugin. New instances can only be instantiated
@@ -224,12 +225,20 @@ public abstract class JVstHost2 implements JVstViewListener {
   public abstract boolean isParameterAutomatable(int index);
   
   /**
-   * Queues the given midi message until the next time that a <code>process</code> variant is called.
+   * Queues the given <code>ShortMessage</code> until the next time that a <code>process</code> variant is called.
    * The queue is cleared upon the execution of <code>process</code>.
-   * @param message  A MIDI message to be queued.
+   * @param message  A MIDI <code>ShortMessage</code> to be queued.
    * @throws NullPointerException  Thrown if the queued midi message is null.
    */
   public abstract void queueMidiMessage(ShortMessage message);
+
+  /**
+   * Queues the given <code>SysexMessage</code> until the next time that a <code>process</code> variant is called.
+   * The queue is cleared upon the execution of <code>process</code>.
+   * @param message  A MIDI <code>SysexMessage</code> to be queued.
+   * @throws NullPointerException  Thrown if the queued midi message is null.
+   */
+  public abstract void queueMidiMessage(SysexMessage message);
   
   /**
    * Generate audio output from the plugin, replacing the contents of the output array. Queued MIDI messages, via <code>queueMidiMessage</code>, will be passed to the plugin.
