@@ -40,6 +40,7 @@
 
 #define PPQ 96.0
 #define DEFAULT_TEMPO 120.0
+#define WINDOWS_EDITOR_CLASSNAME "JVstHost Native Editor"
 
 // GLOBAL VARIABLES
 JavaVM *jvm;
@@ -140,6 +141,22 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *ur_jvm, void *reserved) {
   vpwAudioMasterEndEdit = env->GetMethodID(vpwClass, "audioMasterEndEdit", "(I)V");
   //getPluginDirectory = env->GetMethodID(vpwClass, "getPluginDirectory", "()Ljava/lang/String;");
   mmGetMessage = env->GetMethodID(midiMessageClass, "getMessage", "()[B");
+  
+  #if _WIN32
+    WNDCLASS wndclass;
+    wndclass.style = CS_HREDRAW | CS_VREDRAW;
+    wndclass.lpfnWndProc = (WNDPROC) EditorProc;
+    wndclass.cbClsExtra = 0;
+    wndclass.cbWndExtra = sizeof(LONG_PTR); // a pointer to the associated effect is stored with the window in order to allow for callbacks in the window messaging loop
+    wndclass.hInstance = GetModuleHandle(NULL);
+    wndclass.hIcon = LoadIcon(NULL, IDI_APPLICATION);
+    wndclass.hCursor = LoadCursor(NULL, IDC_ARROW);
+    wndclass.hbrBackground = 0;
+    wndclass.lpszMenuName = NULL;
+    wndclass.lpszClassName = WINDOWS_EDITOR_CLASSNAME;
+    
+    RegisterClass(&wndclass);
+  #endif
   
   return JNI_VERSION;
 }
@@ -979,24 +996,10 @@ JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_openEdi
   AEffect *effect = (AEffect *)ae;
 
   #if _WIN32
-    WNDCLASS wndclass;
-    wndclass.style = CS_HREDRAW | CS_VREDRAW;
-    wndclass.lpfnWndProc = (WNDPROC) EditorProc;
-    wndclass.cbClsExtra = 0;
-    wndclass.cbWndExtra = sizeof(LONG_PTR); // a pointer to the associated effect is stored with the window in order to allow for callbacks in the window messaging loop
-    wndclass.hInstance = GetModuleHandle(NULL);
-    wndclass.hIcon = LoadIcon(NULL, IDI_APPLICATION);
-    wndclass.hCursor = LoadCursor(NULL, IDC_ARROW);
-    wndclass.hbrBackground = 0;
-    wndclass.lpszMenuName = NULL;
-    wndclass.lpszClassName = "JVstHost Native Editor";
-    
-    RegisterClass(&wndclass);
-    
     const char *frameTitle = (char *) env->GetStringUTFChars(jFrameTitle, NULL);
     
     HWND hwnd = CreateWindow(
-        "JVstHost Native Editor", 
+        WINDOWS_EDITOR_CLASSNAME, 
         frameTitle, 
         WS_SYSMENU, //WS_POPUP | WS_CAPTION | WS_BORDER | WS_SYSMENU | WS_VISIBLE | WS_DLGFRAME | DS_CENTER, //WS_OVERLAPPEDWINDOW | WS_POPUP, 
         CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
