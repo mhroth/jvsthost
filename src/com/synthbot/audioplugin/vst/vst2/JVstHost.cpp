@@ -1149,6 +1149,7 @@ VstEvents *setMidiEvents(JNIEnv *env, jobjectArray midiMessages, AEffect* effect
       vstmse->byteSize = sizeof(VstMidiSysexEvent);
       vstmse->deltaFrames = 0;
       vstmse->flags = 0;
+      vstmse->dumpBytes = (VstInt32) (env->GetArrayLength(jmessageArray) - 1);
       vstmse->resvd1 = (VstIntPtr) jmessageArray;
       vstmse->sysexDump = (char *) (messageArray+1); // the first byte of messageArray is the status byte, which we already recorded
       vstmse->resvd2 = 0;
