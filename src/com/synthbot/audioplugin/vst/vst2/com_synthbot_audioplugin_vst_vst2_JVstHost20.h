@@ -18,7 +18,7 @@ JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_setThis
 /*
  * Class:     com_synthbot_audioplugin_vst_vst2_JVstHost20
  * Method:    processReplacing
- * Signature: ([Ljavax/sound/midi/ShortMessage;[[F[[FIJ)V
+ * Signature: ([Ljavax/sound/midi/MidiMessage;[[F[[FIJ)V
  */
 JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_processReplacing
   (JNIEnv *, jclass, jobjectArray, jobjectArray, jobjectArray, jint, jlong);
@@ -34,7 +34,7 @@ JNIEXPORT jint JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_canRepl
 /*
  * Class:     com_synthbot_audioplugin_vst_vst2_JVstHost20
  * Method:    process
- * Signature: ([Ljavax/sound/midi/ShortMessage;[[F[[FIJ)V
+ * Signature: ([Ljavax/sound/midi/MidiMessage;[[F[[FIJ)V
  */
 JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_process
   (JNIEnv *, jclass, jobjectArray, jobjectArray, jobjectArray, jint, jlong);
@@ -54,14 +54,6 @@ JNIEXPORT jint JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_canDo
  */
 JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_setParameter
   (JNIEnv *, jclass, jint, jfloat, jlong);
-	
-/*
- * Class:     com_synthbot_audioplugin_vst_vst2_JVstHost20
- * Method:    isParameterAutomatable
- * Signature: (IJ)I
- */
-JNIEXPORT jint JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_isParameterAutomatable
-  (JNIEnv *, jclass, jint, jlong);
 
 /*
  * Class:     com_synthbot_audioplugin_vst_vst2_JVstHost20
@@ -69,6 +61,14 @@ JNIEXPORT jint JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_isParam
  * Signature: (IJ)F
  */
 JNIEXPORT jfloat JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_getParameter
+  (JNIEnv *, jclass, jint, jlong);
+
+/*
+ * Class:     com_synthbot_audioplugin_vst_vst2_JVstHost20
+ * Method:    isParameterAutomatable
+ * Signature: (IJ)I
+ */
+JNIEXPORT jint JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_isParameterAutomatable
   (JNIEnv *, jclass, jint, jlong);
 
 /*
@@ -318,6 +318,14 @@ JNIEXPORT jbyteArray JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_g
  */
 JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_setBypass
   (JNIEnv *, jclass, jboolean, jlong);
+
+/*
+ * Class:     com_synthbot_audioplugin_vst_vst2_JVstHost20
+ * Method:    getOutputProperties
+ * Signature: (IJ)Lcom/synthbot/audioplugin/vst/vst2/VstPinProperties;
+ */
+JNIEXPORT jobject JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_getOutputProperties
+  (JNIEnv *, jclass, jint, jlong);
 
 #ifdef __cplusplus
 }
