@@ -117,6 +117,145 @@ jobject getCachedCallingObject(AEffect *effect) {
   }
 }
 
+/*
+ * System dependent windowing code
+ * Must be declared early so that setup methods can use the windowing functions
+ */
+#if _WIN32
+/**
+ * @param width  Width in pixels of the content of the window (total frame size calculated automatically)
+ * @param height  Height in pixels of the content of the window
+ */
+void setEditorWindowSizeAndPosition(HWND hwnd, int width, int height) {
+  RECT wRect;
+  SetRect (&wRect, 0, 0, width, height);
+  AdjustWindowRectEx(&wRect, GetWindowLong(hwnd, GWL_STYLE), FALSE, GetWindowLong(hwnd, GWL_EXSTYLE));
+  width = wRect.right - wRect.left;
+  height = wRect.bottom - wRect.top;
+  SetWindowPos(hwnd, HWND_TOP, 0, 0, width, height, SWP_NOMOVE);
+}
+
+/*
+ * Returns true if the ERect info has been successfully retrieved and set. False otherwise.
+ * The window is set to a default size of 100 x 100 pixels in case of failure.
+ */
+bool setERectInfo(AEffect *effect, HWND hwnd) {
+  ERect* eRect = NULL;
+  effect->dispatcher (effect, effEditGetRect, 0, 0, &eRect, 0);
+  if (eRect != NULL) {
+    bool result = true;
+    int width = eRect->right - eRect->left;
+    int height = eRect->bottom - eRect->top;
+    if (width < 100) {
+      width = 100;
+      result = false;
+    }
+    if (height < 100) {
+      height = 100;
+      result = false;
+    }
+
+    setEditorWindowSizeAndPosition(hwnd, width, height);
+    return result;
+  } else {
+    return false;
+  }
+}
+
+INT_PTR CALLBACK EditorProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+
+  switch(msg) {
+    case WM_CREATE: {
+      AEffect *effect = (AEffect *) (((CREATESTRUCT *) lParam)->lpCreateParams);
+      if (effect != NULL) {
+        SetTimer(hwnd, 1, 40, NULL); // 40ms == 25 frames per second
+      
+        JNIEnv *env;
+        jvm->GetEnv((void **)&env, JNI_VERSION);
+        env->MonitorEnter(getCachedCallingObject(effect));
+
+        // apparently some plugins require effEditGetRect to be called before effEditOpen
+        bool isERectInfoSet = setERectInfo(effect, hwnd);
+        effect->dispatcher (effect, effEditOpen, 0, 0, hwnd, 0);
+        if (!isERectInfoSet) {
+          setERectInfo(effect, hwnd);
+        }
+        
+        env->MonitorExit(getCachedCallingObject(effect));
+
+        ShowWindow(hwnd, SW_SHOW);
+        UpdateWindow(hwnd);
+
+        return TRUE; // the message was processed
+      } else {
+        return FALSE;
+      }
+    }
+    
+    case WM_TIMER: {
+      AEffect *effect = (AEffect *) GetWindowLongPtr(hwnd, 0);
+      if (effect != NULL) {
+        //JNIEnv *env;
+        //jvm->GetEnv((void **)&env, JNI_VERSION);
+        //env->MonitorEnter(getCachedCallingObject(effect));
+        effect->dispatcher (effect, effEditIdle, 0, 0, 0, 0);
+        //env->MonitorExit(getCachedCallingObject(effect));
+        return TRUE;
+      } else {
+        return FALSE;
+      }
+    }
+
+    case WM_DESTROY: {
+      AEffect *effect = (AEffect *) GetWindowLongPtr(hwnd, 0);
+      if (effect != NULL) {
+        JNIEnv *env;
+        jvm->GetEnv((void **)&env, JNI_VERSION);
+        env->MonitorEnter(getCachedCallingObject(effect));
+        effect->dispatcher(effect, effEditClose, 0, 0, 0, 0);
+        ((hostLocalVars *) effect->resvd1)->nativeEditorWindow = NULL;
+        env->MonitorExit(getCachedCallingObject(effect));
+      }
+      KillTimer(hwnd, 1);
+      PostQuitMessage(0);
+      return TRUE;
+    }
+    
+    default: {
+      return DefWindowProc(hwnd, msg, wParam, lParam);
+    }
+  }
+}
+
+#elif TARGET_API_MAC_CARBON
+void idleTimerProc (EventLoopTimerRef inTimer, void *inUserData)
+{
+  AEffect* effect = (AEffect*)inUserData;
+  effect->dispatcher (effect, effEditIdle, 0, 0, 0, 0);
+}
+
+OSStatus windowHandler (EventHandlerCallRef inHandlerCallRef, EventRef inEvent, void *inUserData)
+{
+  WindowRef window = (WindowRef) inUserData;
+  UInt32 eventClass = GetEventClass (inEvent);
+  UInt32 eventKind = GetEventKind (inEvent);
+
+  switch (eventClass) {
+    case kEventClassWindow: {
+      switch (eventKind) {
+        case kEventWindowClose: {
+          // http://developer.apple.com/documentation/Carbon/Reference/Carbon_Event_Manager_Ref/Reference/reference.html#//apple_ref/c/func/QuitAppModalLoopForWindow
+          QuitAppModalLoopForWindow(window);
+          break;
+        }
+      }
+      break;
+    }
+  }
+  return eventNotHandledErr;
+}
+#endif
+
 /**
  * Called only once at start of library load
  */
@@ -866,140 +1005,6 @@ JNIEXPORT jint JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost2_getVstVe
   AEffect *effect = (AEffect *)ae;
   return effect->dispatcher(effect, effGetVstVersion, 0, 0, 0, 0);
 }
-
-/*
- * System dependent windowing code
- */
-#if _WIN32
-/*
- * Returns true if the ERect info has been successfully retrieved and set. False otherwise.
- * The window is set to a default size of 100 x 100 pixels in case of failure.
- */
-bool setERectInfo(AEffect *effect, HWND hwnd) {
-  ERect* eRect = NULL;
-  effect->dispatcher (effect, effEditGetRect, 0, 0, &eRect, 0);
-  if (eRect != NULL) {
-    bool result = true;
-    int width = eRect->right - eRect->left;
-    int height = eRect->bottom - eRect->top;
-    if (width < 100) {
-      width = 100;
-      result = false;
-    }
-    if (height < 100) {
-      height = 100;
-      result = false;
-    }
-
-    setEditorWindowSizeAndPosition(effect, hwnd);
-    return result;
-  } else {
-    return false;
-  }
-}
-
-void setEditorWindowSizeAndPosition(HWND hwnd, int width, int height) {
-  RECT wRect;
-  SetRect (&wRect, 0, 0, width, height);
-  AdjustWindowRectEx(&wRect, GetWindowLong(hwnd, GWL_STYLE), FALSE, GetWindowLong(hwnd, GWL_EXSTYLE));
-  width = wRect.right - wRect.left;
-  height = wRect.bottom - wRect.top;
-  SetWindowPos(hwnd, HWND_TOP, 0, 0, width, height, SWP_NOMOVE);
-}
-
-INT_PTR CALLBACK EditorProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
-
-  switch(msg) {
-    case WM_CREATE: {
-      AEffect *effect = (AEffect *) (((CREATESTRUCT *) lParam)->lpCreateParams);
-      if (effect != NULL) {
-        SetTimer(hwnd, 1, 40, NULL); // 40ms == 25 frames per second
-      
-        JNIEnv *env;
-        jvm->GetEnv((void **)&env, JNI_VERSION);
-        env->MonitorEnter(getCachedCallingObject(effect));
-
-        // apparently some plugins require effEditGetRect to be called before effEditOpen
-        bool isERectInfoSet = setERectInfo(effect, hwnd);
-        effect->dispatcher (effect, effEditOpen, 0, 0, hwnd, 0);
-        if (!isERectInfoSet) {
-          setERectInfo(effect, hwnd);
-        }
-        
-        env->MonitorExit(getCachedCallingObject(effect));
-
-        ShowWindow(hwnd, SW_SHOW);
-        UpdateWindow(hwnd);
-
-        return TRUE; // the message was processed
-      } else {
-        return FALSE;
-      }
-    }
-    
-    case WM_TIMER: {
-      AEffect *effect = (AEffect *) GetWindowLongPtr(hwnd, 0);
-      if (effect != NULL) {
-        //JNIEnv *env;
-        //jvm->GetEnv((void **)&env, JNI_VERSION);
-        //env->MonitorEnter(getCachedCallingObject(effect));
-        effect->dispatcher (effect, effEditIdle, 0, 0, 0, 0);
-        //env->MonitorExit(getCachedCallingObject(effect));
-        return TRUE;
-      } else {
-        return FALSE;
-      }
-    }
-
-    case WM_DESTROY: {
-      AEffect *effect = (AEffect *) GetWindowLongPtr(hwnd, 0);
-      if (effect != NULL) {
-        JNIEnv *env;
-        jvm->GetEnv((void **)&env, JNI_VERSION);
-        env->MonitorEnter(getCachedCallingObject(effect));
-        effect->dispatcher(effect, effEditClose, 0, 0, 0, 0);
-        ((hostLocalVars *) effect->resvd1)->nativeEditorWindow = NULL;
-        env->MonitorExit(getCachedCallingObject(effect));
-      }
-      KillTimer(hwnd, 1);
-      PostQuitMessage(0);
-      return TRUE;
-    }
-    
-    default: {
-      return DefWindowProc(hwnd, msg, wParam, lParam);
-    }
-  }
-}
-
-#elif TARGET_API_MAC_CARBON
-void idleTimerProc (EventLoopTimerRef inTimer, void *inUserData)
-{
-	AEffect* effect = (AEffect*)inUserData;
-	effect->dispatcher (effect, effEditIdle, 0, 0, 0, 0);
-}
-
-OSStatus windowHandler (EventHandlerCallRef inHandlerCallRef, EventRef inEvent, void *inUserData)
-{
-	WindowRef window = (WindowRef) inUserData;
-	UInt32 eventClass = GetEventClass (inEvent);
-	UInt32 eventKind = GetEventKind (inEvent);
-
-	switch (eventClass) {
-		case kEventClassWindow: {
-			switch (eventKind) {
-				case kEventWindowClose: {
-          // http://developer.apple.com/documentation/Carbon/Reference/Carbon_Event_Manager_Ref/Reference/reference.html#//apple_ref/c/func/QuitAppModalLoopForWindow
-					QuitAppModalLoopForWindow(window);
-					break;
-				}
-			}
-			break;
-		}
-	}
-	return eventNotHandledErr;
-}
-#endif
 
 // http://developer.apple.com/documentation/Carbon/Reference/Window_Manager/Reference/reference.html
 JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_openEditor
