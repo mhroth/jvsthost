@@ -98,7 +98,10 @@ public class VstPinProperties {
   
   /**
    * Indicates if this pin is first in a stereo pair. If <code>true</code>, then the next pin is
-   * the alternate channel.
+   * the alternate channel. Note There is some confusion as to the correct interpretation of this 
+   * information based on the original VST API. This flag indicates either that the pin is a part
+   * of a stereo pair, or that it is the first in a stereo pair, as described. Due to this confusion,
+   * different plugins may decide on differing interpretations.
    */
   public boolean isFirstInStereoPair() {
     if (IS_VALID) {
