@@ -448,6 +448,12 @@ public abstract class JVstHost2 implements JVstViewListener {
   public abstract boolean isEditorOpen();
   
   /**
+   * If the native editor is open, the window is made visible and brought to the top.
+   * This is a convenience method to manage the native editor window. 
+   */
+  public abstract void topEditor();
+  
+  /**
    * Close the native editor window. This method does nothing if the plugin has no native editor or
    * if the native editor window is already closed. Note that this method blocks until the native
    * editor thread has returned and signaled that the window is closed.

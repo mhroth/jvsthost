@@ -1104,6 +1104,20 @@ JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_openEdi
   #endif
 }
 
+JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_topEditor
+  (JNIEnv *env, jclass jclazz, jlong ae) {
+  
+  AEffect *effect = (AEffect *) ae;
+  #if _WIN32
+    if (isHostLocalVarsValid(effect)) {
+      HWND hwnd = (HWND)((hostLocalVars *) effect->resvd1)->nativeEditorWindow;
+      if (hwnd != NULL) {
+        BringWindowToTop(hwnd);
+      }
+    }
+  #endif
+}
+
 JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_closeEditor
   (JNIEnv *env, jclass jclazz, jlong ae) {
 

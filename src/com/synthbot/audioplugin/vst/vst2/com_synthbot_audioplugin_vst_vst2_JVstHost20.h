@@ -209,6 +209,14 @@ JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_openEdi
 
 /*
  * Class:     com_synthbot_audioplugin_vst_vst2_JVstHost20
+ * Method:    topEditor
+ * Signature: (J)V
+ */
+JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_topEditor
+  (JNIEnv *, jclass, jlong);
+
+/*
+ * Class:     com_synthbot_audioplugin_vst_vst2_JVstHost20
  * Method:    closeEditor
  * Signature: (J)V
  */
