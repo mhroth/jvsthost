@@ -24,7 +24,7 @@ package com.synthbot.audioplugin.vst.vst2;
 /**
  * A data class holding information regarding an input or output. The elements of this class are
  * not mutable. Check to see if the data is valid with <code>isValid</code>. If not, then any access
- * of other methods will throw an <code>IllegalStateException</code>.
+ * of methods other than <code>getIoIndex</code> will throw an <code>IllegalStateException</code>.
  */
 public class VstPinProperties {
 
@@ -35,15 +35,26 @@ public class VstPinProperties {
   private final boolean IS_ACTIVE;
   private final boolean IS_FIRST_IN_STEREO_PAIR;
 
-  public VstPinProperties() {
+  /**
+   * Construct an invalid <code>VstPinProperties</code> object for the given index.
+   * @param index  
+   */
+  public VstPinProperties(int index) {
     IS_VALID = false;
-    INDEX = 0;
+    INDEX = index;
     LABEL = "";
     SHORT_LABEL = "";
     IS_ACTIVE = false;
     IS_FIRST_IN_STEREO_PAIR = false;
   }
   
+  /**\
+   * Construct a valid <code>VstPinProperties</code> object for the given index.
+   * @param index
+   * @param label
+   * @param shortLabel
+   * @param flags
+   */
   public VstPinProperties(int index, String label, String shortLabel, int flags) {
     IS_VALID = true;
     INDEX = index;

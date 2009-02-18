@@ -1112,7 +1112,9 @@ JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_topEdit
     if (isHostLocalVarsValid(effect)) {
       HWND hwnd = (HWND)((hostLocalVars *) effect->resvd1)->nativeEditorWindow;
       if (hwnd != NULL) {
-        BringWindowToTop(hwnd);
+        SetForegroundWindow(hwnd);
+        //BringWindowToTop(hwnd);
+        //SetActiveWindow(hwnd);
       }
     }
   #endif
@@ -1723,7 +1725,8 @@ JNIEXPORT jobject JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_getP
   } else {
     jvstPinProperties = env->NewObject(
         classVstPinProperties,
-        env->GetMethodID(classVstPinProperties, "<init>", "()V"));
+        env->GetMethodID(classVstPinProperties, "<init>", "(I)V"),
+        index);
   }
     
   free(vpp);
