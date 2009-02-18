@@ -68,12 +68,7 @@ public class VstPinProperties {
    * Returns the input or output index to which this data belongs.
    */
   public int getIoIndex() {
-    if (IS_VALID) {
-      return INDEX;      
-    } else {
-      throw new IllegalStateException("The data represented by this object is not valid. " +
-      		"The plugin does not support VstPinProperties.");
-    }
+    return INDEX;
   }
   
   /**
