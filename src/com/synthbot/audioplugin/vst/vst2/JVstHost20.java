@@ -422,6 +422,16 @@ public class JVstHost20 extends JVstHost2 {
   }
   
   @Override
+  public synchronized void topEditor() {
+    if (isEditorOpen()) {
+      topEditor(vstPluginPtr);
+      System.out.println("done topping editor");
+    }
+  }
+  protected static native void topEditor(long pluginPtr);
+  
+  
+  @Override
   public synchronized void closeEditor() {
     assertNativeComponentIsLoaded();
     if (isEditorOpen()) {
