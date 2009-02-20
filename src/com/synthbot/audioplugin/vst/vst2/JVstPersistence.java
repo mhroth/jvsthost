@@ -26,104 +26,115 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.lang.SecurityException;
+import java.util.zip.DataFormatException;
 
 /**
  * A class to load and save VST preset files (*.fxp, *.fxb)
  */
 public class JVstPersistence {
   
-  private static final String chunkMagic = "CcnK";
-  private static final String regularPresetMagic = "FxCk";
-  private static final String opaquePresetMagic = "FPCh";
-  private static final String regularBankMagic = "FxBk";
-  private static final String opaqueBankMagic = "FBCh";
-  
+  private static final String CHUNK_MAGIC = "CcnK";
+  private static final String REGULAR_PRESET_MAGIC = "FxCk";
+  private static final String OPAQUE_PRESET_MAGIC = "FPCh";
+  private static final String REGULAR_BANK_MAGIC = "FxBk";
+  private static final String OPAQUE_BANK_MAGIC = "FBCh";
+
   /**
-   * Loads a preset of the JVstHost2 to the File.
-   * @return True if the load was successful. False otherwise.
+   * Loads a program preset frm file to the current program of the plugin.
+   * @param vst  The plugin to load the data into.
+   * @param file  The file to read which contains the program data.
+   * @throws DataFormatException  Thrown if there is a problem loading the data in the file to the plugin.
+   * @throws FileNotFoundException  Thrown if the file to load cannot be found, or is not a file (perhaps it is a directory).
+   * @throws IOException  Thrown if there is a problem with opening or reading the file.
+   * @throws NullPointerException  Thrown if the given plugin or file are <code>null</code>.
    */
-  public static boolean loadPreset(JVstHost2 vst, File file) {
-    try {
-      DataInputStream fxp = new DataInputStream(new FileInputStream(file));
-      
-      byte[] fourBytes = new byte[4];
-      
-      fxp.read(fourBytes);
-      if (!chunkMagic.equals(new String(fourBytes))) {
-        fxp.close();
-        return false;
-      }
-      
-      int fileLength = fxp.readInt();
-      
-      fxp.read(fourBytes);
-      String chunkDataType = new String(fourBytes);
-      boolean isRegularChunk = true;
-      if (regularPresetMagic.equals(chunkDataType)) {
-        isRegularChunk = true;
-      } else if (opaquePresetMagic.equals(chunkDataType)) {
-        if (!vst.acceptsProgramsAsChunks()) {
-          fxp.close();
-          return false;
-        } else {
-          isRegularChunk = false;
-        }
-      }
-      
-      int fileVersion = fxp.readInt();
-      if (fileVersion > 1) {
-        // ???
-        fxp.close();
-        return false;
-      }
-      
-      // unique id
-      fxp.read(fourBytes);
-      String uniqueId = new String(fourBytes);
-      if (!vst.getUniqueId().equals(uniqueId)) {
-        fxp.close();
-        return false;
-      }
-      
-      if (vst.getPluginVersion() < fxp.readInt()) {
-        fxp.close();
-        return false;
-      }
-      
-      int numParameters = fxp.readInt();
-      
-      byte[] programNameBytes = new byte[28];
-      fxp.read(programNameBytes);
-      String programName = new String(programNameBytes);
-      vst.setProgramName(programName);
-      
-      if (isRegularChunk) {
-        for (int i = 0; i < numParameters; i++) {
-          vst.setParameter(i, fxp.readFloat());
-        }
-      } else {
-        byte[] chunkData = new byte[fxp.readInt()];
-        fxp.read(chunkData);        
-        vst.setProgramChunk(chunkData);
-      }
-      
-      fxp.close();
-      return true;
-    } catch (FileNotFoundException fnfe) {
-      fnfe.printStackTrace(System.err);
-      return false;
-    } catch (SecurityException se) {
-      se.printStackTrace(System.err);
-      return false;
-    } catch (IOException ioe) {
-      ioe.printStackTrace(System.err);
-      return false;
+  public static void loadPreset(JVstHost2 vst, File file) throws DataFormatException, IOException {
+    if (vst == null) {
+      throw new NullPointerException("The given JVstHost2 object may not be null.");
     }
+    if (file == null) {
+      throw new NullPointerException("The given File object may not be null.");
+    }
+    if (!file.exists()) {
+      throw new FileNotFoundException("The given file, " + file.toString() + ", cannot be found.");
+    }
+    if (!file.isFile()) {
+      throw new FileNotFoundException("The given file, " + file.toString() + ", is not a file.");
+    }
+    
+    DataInputStream fxp = new DataInputStream(new FileInputStream(file));
+    
+    byte[] fourBytes = new byte[4];
+    
+    fxp.read(fourBytes);
+    if (!CHUNK_MAGIC.equals(new String(fourBytes))) {
+      fxp.close();
+      throw new DataFormatException("File does not contain required Chunk Magic, \"" + CHUNK_MAGIC + "\", flag.");
+    }
+    
+    int fileLength = fxp.readInt();
+    
+    fxp.read(fourBytes);
+    String chunkDataType = new String(fourBytes);
+    boolean isRegularChunk = true;
+    if (REGULAR_PRESET_MAGIC.equals(chunkDataType)) {
+      isRegularChunk = true;
+    } else if (OPAQUE_PRESET_MAGIC.equals(chunkDataType)) {
+      if (!vst.acceptsProgramsAsChunks()) {
+        fxp.close();
+        throw new DataFormatException("File contains opaque data but plugin claims not to accept programs as chunks.");
+      } else {
+        isRegularChunk = false;
+      }
+    } else {
+      throw new DataFormatException("File reports that is contains neither regular nor opqaue chunks.");
+    }
+    
+    int fileVersion = fxp.readInt();
+    if (fileVersion > 1) {
+      fxp.close();
+      throw new DataFormatException("File version " + Integer.toString(fileVersion) + " is not supported.");
+    }
+    
+    // unique id
+    fxp.read(fourBytes);
+    String uniqueId = new String(fourBytes);
+    if (!vst.getUniqueId().equals(uniqueId)) {
+      fxp.close();
+      throw new DataFormatException("Unique plugin ID in file does not match given plugin. " +
+      		"Is this file really for " + vst.getEffectName() + "?");
+    }
+    
+    int filePluginVersion = fxp.readInt();
+    if (vst.getPluginVersion() < filePluginVersion) {
+      fxp.close();
+      throw new DataFormatException("This file contains data for a later plugin version " + 
+          Integer.toString(filePluginVersion) + ", and the given plugin is only version " + 
+          Integer.toString(vst.getPluginVersion()) + ". Get a newer version of the plugin.");
+    }
+    
+    int numParameters = fxp.readInt();
+    
+    byte[] programNameBytes = new byte[28];
+    fxp.read(programNameBytes);
+    String programName = new String(programNameBytes);
+    vst.setProgramName(programName);
+    
+    if (isRegularChunk) {
+      for (int i = 0; i < numParameters; i++) {
+        vst.setParameter(i, fxp.readFloat());
+      }
+    } else {
+      byte[] chunkData = new byte[fxp.readInt()];
+      fxp.read(chunkData);        
+      vst.setProgramChunk(chunkData);
+    }
+    
+    fxp.close();
   }
   
   /**
@@ -135,90 +146,92 @@ public class JVstPersistence {
   }
   
   /**
-   * Saves a preset of the JVstHost2 to the File.
-   * @return True if the save was successful. False otherwise.
+   * Saves the current program of the given plugin to file.
+   * @param vst  The plugin to load the data into.
+   * @param file  The file to read which contains the program data.
+   * @throws FileNotFoundException  Thrown if the file is not a file (perhaps it is a directory).
+   * @throws IOException  Thrown if there is a problem with opening or writing to the file.
+   * @throws NullPointerException  Thrown if the given plugin or file are <code>null</code>.
    */
-  public static boolean savePreset(JVstHost2 vst, File file) {
-    try {
-      DataOutputStream fxpOut = new DataOutputStream(new FileOutputStream(file));
-
-      fxpOut.writeBytes(chunkMagic);
-      
-      int chunkDataLength = 0;
-      byte[] chunkData = null;
-      if (vst.acceptsProgramsAsChunks()) {
-        chunkData = vst.getProgramChunk();
-        chunkDataLength = chunkData.length;
-      } else {
-        chunkDataLength = 4 * vst.numParameters();
-      }
-      
-      // length of file - 8
-      if (vst.acceptsProgramsAsChunks()) {
-        fxpOut.writeInt(60 + chunkDataLength - 8);        
-      } else {
-        fxpOut.writeInt(59 + chunkDataLength - 8);
-      }
-      
-      if (vst.acceptsProgramsAsChunks()) {
-        fxpOut.writeBytes(opaquePresetMagic);
-      } else {
-        fxpOut.writeBytes(regularPresetMagic);
-      }
-      
-      // format version
-      fxpOut.writeInt(1);
-      
-      // plugin unique id
-      fxpOut.writeBytes(vst.getUniqueId());
-      
-      // plugin version
-      fxpOut.writeInt(vst.getPluginVersion());
-      
-      // numParams
-      if (vst.acceptsProgramsAsChunks()) {
-        fxpOut.writeInt(1);
-      } else {
-        fxpOut.writeInt(vst.numParameters());
-      }
-      
-      String programName = vst.getProgramName();
-      if (programName.length() > 28) {
-        fxpOut.writeBytes(programName.substring(0, 28));        
-      }  else {
-        fxpOut.writeBytes(programName);
-        fxpOut.write(new byte[28 - programName.length()]);
-      }
-      
-      if (vst.acceptsProgramsAsChunks()) {
-        // chunk data length
-        fxpOut.writeInt(chunkDataLength);
-      }
-      
-      if (vst.acceptsProgramsAsChunks()) {
-        // the plugin in responsible for producing its own state data
-        fxpOut.write(chunkData);
-      } else {
-        // otherwise the host may save the parameter state as it sees fit
-        // In this case, the floats representing the parameters are printed out
-        int numParameters = vst.numParameters();
-        for (int i = 0; i < numParameters; i++) {
-          fxpOut.writeFloat(vst.getParameter(i));
-        }
-      }
-      
-      fxpOut.close();
-      return true;
-    } catch (FileNotFoundException fnfe) {
-      fnfe.printStackTrace(System.err);
-      return false;
-    } catch (SecurityException se) {
-      se.printStackTrace(System.err);
-      return false;
-    } catch (IOException ioe) {
-      ioe.printStackTrace(System.err);
-      return false;
+  public static void savePreset(JVstHost2 vst, File file) throws IOException {
+    if (vst == null) {
+      throw new NullPointerException("The given JVstHost2 object may not be null.");
     }
+    if (file == null) {
+      throw new NullPointerException("The given File object may not be null.");
+    }
+    if (!file.isFile()) {
+      throw new FileNotFoundException("The given file, " + file.toString() + ", is not a file.");
+    }
+    
+    DataOutputStream fxpOut = new DataOutputStream(new FileOutputStream(file));
+
+    fxpOut.writeBytes(CHUNK_MAGIC);
+    
+    int chunkDataLength = 0;
+    byte[] chunkData = null;
+    if (vst.acceptsProgramsAsChunks()) {
+      chunkData = vst.getProgramChunk();
+      chunkDataLength = chunkData.length;
+    } else {
+      chunkDataLength = 4 * vst.numParameters();
+    }
+    
+    // length of file - 8
+    if (vst.acceptsProgramsAsChunks()) {
+      fxpOut.writeInt(60 + chunkDataLength - 8);        
+    } else {
+      fxpOut.writeInt(59 + chunkDataLength - 8);
+    }
+    
+    if (vst.acceptsProgramsAsChunks()) {
+      fxpOut.writeBytes(OPAQUE_PRESET_MAGIC);
+    } else {
+      fxpOut.writeBytes(REGULAR_PRESET_MAGIC);
+    }
+    
+    // format version
+    fxpOut.writeInt(1);
+    
+    // plugin unique id
+    fxpOut.writeBytes(vst.getUniqueId());
+    
+    // plugin version
+    fxpOut.writeInt(vst.getPluginVersion());
+    
+    // numParams
+    if (vst.acceptsProgramsAsChunks()) {
+      fxpOut.writeInt(1);
+    } else {
+      fxpOut.writeInt(vst.numParameters());
+    }
+    
+    String programName = vst.getProgramName();
+    if (programName.length() > 28) {
+      fxpOut.writeBytes(programName.substring(0, 28));        
+    }  else {
+      fxpOut.writeBytes(programName);
+      fxpOut.write(new byte[28 - programName.length()]);
+    }
+    
+    if (vst.acceptsProgramsAsChunks()) {
+      // chunk data length
+      fxpOut.writeInt(chunkDataLength);
+    }
+    
+    if (vst.acceptsProgramsAsChunks()) {
+      // the plugin in responsible for producing its own state data
+      fxpOut.write(chunkData);
+    } else {
+      // otherwise the host may save the parameter state as it sees fit
+      // In this case, the floats representing the parameters are printed out
+      int numParameters = vst.numParameters();
+      for (int i = 0; i < numParameters; i++) {
+        fxpOut.writeFloat(vst.getParameter(i));
+      }
+    }
+    
+    fxpOut.close();
   }
   
   /**
@@ -231,36 +244,101 @@ public class JVstPersistence {
   
   /**
    * The preset parameters are saved as human readable text. Useful for debugging.
-   * @return True if the save was successful.
+   * @param vst  The plugin to load the data into.
+   * @param file  The file to read which contains the program data.
+   * @throws FileNotFoundException  Thrown if the file is not a file (perhaps it is a directory).
+   * @throws IOException  Thrown if there is a problem with opening or writing to the file.
+   * @throws NullPointerException  Thrown if the given plugin or file are <code>null</code>.
    */
-  public static boolean savePresetAsText(JVstHost2 vst, File file) {
-    try {
-      BufferedWriter fxp = new BufferedWriter(new FileWriter(file));
-      StringBuilder sb = new StringBuilder();
-      sb.append(vst.getProductString()); sb.append(" by "); sb.append(vst.getVendorName());
-      sb.append("\n");
-      sb.append("===");
-      sb.append("\n");
-      for (int i = 0; i < vst.numParameters(); i++) {
-        sb.append(i);
-        sb.append(" ");
-        sb.append(vst.getParameterName(i)); 
-        sb.append(": "); 
-        sb.append(vst.getParameter(i)); 
-        sb.append(" ("); 
-        sb.append(vst.getParameterDisplay(i)); 
-        sb.append(" "); 
-        sb.append(vst.getParameterLabel(i)); 
-        sb.append(")");
-        sb.append("\n");
-      }
-      fxp.write(sb.toString());
-      fxp.flush();
-      fxp.close();
-      return true;
-    } catch (IOException ioe) {
-      ioe.printStackTrace(System.err);
-      return false;
+  public static void savePresetAsText(JVstHost2 vst, File file) throws IOException {
+    if (vst == null) {
+      throw new NullPointerException("The given JVstHost2 object may not be null.");
     }
+    if (file == null) {
+      throw new NullPointerException("The given File object may not be null.");
+    }
+    if (!file.isFile()) {
+      throw new FileNotFoundException("The given file, " + file.toString() + ", is not a file.");
+    }
+    
+    BufferedWriter fxp = new BufferedWriter(new FileWriter(file));
+    StringBuilder sb = new StringBuilder();
+    sb.append(vst.getProductString()); sb.append(" by "); sb.append(vst.getVendorName());
+    sb.append("\n");
+    sb.append("===");
+    sb.append("\n");
+    for (int i = 0; i < vst.numParameters(); i++) {
+      sb.append(i);
+      sb.append(" ");
+      sb.append(vst.getParameterName(i)); 
+      sb.append(": "); 
+      sb.append(vst.getParameter(i)); 
+      sb.append(" ("); 
+      sb.append(vst.getParameterDisplay(i)); 
+      sb.append(" "); 
+      sb.append(vst.getParameterLabel(i)); 
+      sb.append(")");
+      sb.append("\n");
+    }
+    fxp.write(sb.toString());
+    fxp.flush();
+    fxp.close();
+  }
+  
+  /**
+   * Returns a <code>VstFileInfo</code> object which can be queried regarding the contents of the
+   * preset file. This method is useful for determining which preset files belong to which plugins.
+   * @param file  The file to read which contains the program data.
+   * @return  A <code>VstFileInfo</code> object describing the given file.
+   * @throws DataFormatException  Thrown if there is a problem loading the data in the file to the plugin.
+   * @throws FileNotFoundException  Thrown if the file to load cannot be found, or is not a file (perhaps it is a directory).
+   * @throws IOException  Thrown if there is a problem with opening or reading the file.
+   * @throws NullPointerException  Thrown if the given file is <code>null</code>.
+   */
+  public static VstFileInfo getVstFileInfo(File file) throws DataFormatException, IOException {
+    if (file == null) {
+      throw new NullPointerException();
+    }
+    if (!file.exists()) {
+      throw new FileNotFoundException();
+    }
+    if (!file.isFile()) {
+      throw new FileNotFoundException();
+    }
+    
+    DataInputStream fxp = new DataInputStream(new FileInputStream(file));
+    
+    byte[] fourBytes = new byte[4];
+    
+    fxp.read(fourBytes);
+    if (!CHUNK_MAGIC.equals(new String(fourBytes))) {
+      fxp.close();
+      throw new DataFormatException("File does not contain required Chunk Magic, \"" + CHUNK_MAGIC + "\", flag.");
+    }
+    
+    fxp.readInt(); // file length
+    
+    fxp.read(fourBytes);
+    String chunkDataType = new String(fourBytes);
+    boolean isRegularChunk = true;
+    if (REGULAR_PRESET_MAGIC.equals(chunkDataType)) {
+      isRegularChunk = true;
+    } else if (OPAQUE_PRESET_MAGIC.equals(chunkDataType)) {
+      isRegularChunk = false;
+    } else {
+      throw new DataFormatException("File reports that is contains neither regular nor opqaue chunks.");
+    }
+    
+    int fileVersion = fxp.readInt();
+    
+    // unique id
+    fxp.read(fourBytes);
+    String uniqueId = new String(fourBytes);
+    
+    int filePluginVersion = fxp.readInt();
+    
+    fxp.close();
+     
+    return new VstFileInfo(uniqueId, filePluginVersion, fileVersion, !isRegularChunk);
   }
 }
