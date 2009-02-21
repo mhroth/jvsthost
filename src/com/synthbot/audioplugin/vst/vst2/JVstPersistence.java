@@ -160,8 +160,8 @@ public class JVstPersistence {
     if (file == null) {
       throw new NullPointerException("The given File object may not be null.");
     }
-    if (!file.isFile()) {
-      throw new FileNotFoundException("The given file, " + file.toString() + ", is not a file.");
+    if (file.isDirectory()) {
+      throw new FileNotFoundException("The given file, " + file.toString() + ", is a directory. It should be a file.");
     }
     
     DataOutputStream fxpOut = new DataOutputStream(new FileOutputStream(file));
@@ -257,8 +257,8 @@ public class JVstPersistence {
     if (file == null) {
       throw new NullPointerException("The given File object may not be null.");
     }
-    if (!file.isFile()) {
-      throw new FileNotFoundException("The given file, " + file.toString() + ", is not a file.");
+    if (file.isDirectory()) {
+      throw new FileNotFoundException("The given file, " + file.toString() + ", is a directory. It should be a file.");
     }
     
     BufferedWriter fxp = new BufferedWriter(new FileWriter(file));
