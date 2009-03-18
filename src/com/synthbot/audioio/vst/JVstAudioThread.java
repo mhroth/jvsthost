@@ -41,6 +41,7 @@ public class JVstAudioThread implements Runnable {
   private final byte[] bOutput;
   private int blockSize;
   private int numOutputs;
+  private int numAudioOutputs;
   private AudioFormat audioFormat;
   private SourceDataLine sourceDataLine;
 
@@ -49,12 +50,13 @@ public class JVstAudioThread implements Runnable {
   public JVstAudioThread(JVstHost2 vst) {
     this.vst = vst;
     numOutputs = vst.numOutputs();
+    numAudioOutputs = Math.min(2, numOutputs); // because most machines do not offer more than 2 output channels
     blockSize = vst.getBlockSize();
     fInputs = new float[vst.numInputs()][blockSize];
     fOutputs = new float[numOutputs][blockSize];
-    bOutput = new byte[numOutputs * blockSize * 2];
+    bOutput = new byte[numAudioOutputs * blockSize * 2];
 
-    audioFormat = new AudioFormat((int) vst.getSampleRate(), 16, vst.numOutputs(), true, false);
+    audioFormat = new AudioFormat((int) vst.getSampleRate(), 16, numAudioOutputs, true, false);
     DataLine.Info dataLineInfo = new DataLine.Info(SourceDataLine.class, audioFormat);
 
     sourceDataLine = null;
@@ -86,7 +88,7 @@ public class JVstAudioThread implements Runnable {
   private byte[] floatsToBytes(float[][] fData, byte[] bData) {
     int index = 0;
     for (int i = 0; i < blockSize; i++) {
-      for (int j = 0; j < numOutputs; j++) {
+      for (int j = 0; j < numAudioOutputs; j++) {
         short sval = (short) (fData[j][i] * ShortMaxValueAsFloat);
         bData[index++] = (byte) (sval & 0x00FF);
         bData[index++] = (byte) ((sval & 0xFF00) >> 8);
