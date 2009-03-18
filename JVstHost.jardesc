@@ -22,14 +22,13 @@
 <javaElement handleIdentifier="=JVstHost/src&lt;com.synthbot.audioplugin.vst.vst2{JVstHost20.java"/>
 <javaElement handleIdentifier="=JVstHost/src&lt;com.synthbot.audioplugin.vst{VstVersion.java"/>
 <javaElement handleIdentifier="=JVstHost/src&lt;com.synthbot.audioplugin.vst.vst2{VstFileInfo.java"/>
+<javaElement handleIdentifier="=JVstHost/src&lt;com.synthbot.minihost.view{JVstMiniHostGui.java"/>
 <javaElement handleIdentifier="=JVstHost/src&lt;com.synthbot.audioplugin.vst.vst2{VstPluginCanDo.java"/>
 <javaElement handleIdentifier="=JVstHost/src&lt;com.synthbot.audioplugin.vst.vst2{JVstHostListener.java"/>
 <javaElement handleIdentifier="=JVstHost/src&lt;com.synthbot.audioplugin.vst.vst2{JVstHost23.java"/>
-<javaElement handleIdentifier="=JVstHost/src&lt;com.synthbot.audioplugin.vst.view"/>
 <javaElement handleIdentifier="=JVstHost/src&lt;com.synthbot.audioplugin.vst.vst2{VstPinProperties.java"/>
 <javaElement handleIdentifier="=JVstHost/src&lt;com.synthbot.audioio.vst{JVstAudioThread.java"/>
 <javaElement handleIdentifier="=JVstHost/src&lt;com.synthbot.audioplugin.vst.vst2{JVstHost24.java"/>
-<javaElement handleIdentifier="=JVstHost/src&lt;com.synthbot.minihost.view"/>
 <javaElement handleIdentifier="=JVstHost/src&lt;com.synthbot.minihost{RandomMiniHost.java"/>
 <javaElement handleIdentifier="=JVstHost/src&lt;com.synthbot.audioplugin.vst.vst2{JVstHost22.java"/>
 <javaElement handleIdentifier="=JVstHost/src&lt;com.synthbot.audioplugin.vst.vst2{JVstHost2.java"/>

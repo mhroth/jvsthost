@@ -23,7 +23,6 @@ package com.synthbot.audioplugin.vst.vst2;
 
 import com.synthbot.audioplugin.vst.JVstLoadException;
 import com.synthbot.audioplugin.vst.VstVersion;
-import com.synthbot.audioplugin.vst.view.JVstViewListener;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -49,7 +48,7 @@ import javax.sound.midi.SysexMessage;
  * All public methods of JVstHost2 and its subclasses are synchronized. They are thread-safe.
  *
  */
-public abstract class JVstHost2 implements JVstViewListener {
+public abstract class JVstHost2 {
   
   protected final File pluginFile;
   protected final long vstPluginPtr;

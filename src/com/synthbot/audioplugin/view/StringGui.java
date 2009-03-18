@@ -21,6 +21,8 @@
 
 package com.synthbot.audioplugin.view;
 
+import com.synthbot.audioplugin.vst.vst2.JVstHost2;
+
 import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.EventQueue;
@@ -43,13 +45,11 @@ import javax.swing.JSlider;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 
-import com.synthbot.audioplugin.vst.view.JVstViewListener;
-
 public class StringGui extends JFrame {
 
   private final static long serialVersionUID = 0L;
   
-  private final JVstViewListener vst;
+  private final JVstHost2 vst;
 
   private final int numParameters;
   private final JSlider[] sliders;
@@ -57,9 +57,9 @@ public class StringGui extends JFrame {
   private final ChangeListener[] changeListeners;
   private final JComboBox programComboBox;
 
-  public StringGui(JVstViewListener jVstViewListener) {
-    super(jVstViewListener.getEffectName() + " by " + jVstViewListener.getVendorName());
-    vst = jVstViewListener;
+  public StringGui(final JVstHost2 vst) {
+    super(vst.getEffectName() + " by " + vst.getVendorName());
+    this.vst = vst;
     this.setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
     
     // configure the gui based on this host
