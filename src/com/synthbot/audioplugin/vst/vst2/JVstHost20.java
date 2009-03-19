@@ -467,10 +467,10 @@ public class JVstHost20 extends JVstHost2 {
   protected static native int getProgram(long pluginPtr);
   
   @Override
-  public synchronized void setProgram(int index) throws IndexOutOfBoundsException {
+  public synchronized void setProgram(int index) {
     assertNativeComponentIsLoaded();
     if (index < 0 || index >= numPrograms) {
-      throw new IndexOutOfBoundsException("This plugin has only " + numPrograms + " programs. Program index " + index + " must be between 0 and " + numPrograms + ".");
+      throw new IndexOutOfBoundsException("The program index must be in [0, " + numPrograms + "): " + Integer.toString(index));
     }
     setProgram(index, vstPluginPtr);
   }
@@ -487,7 +487,7 @@ public class JVstHost20 extends JVstHost2 {
   public synchronized String getProgramName(int index) {
     assertNativeComponentIsLoaded();
     if (index < 0 || index >= numPrograms) {
-      throw new IndexOutOfBoundsException("This plugin has only " + numPrograms + " programs. Program index " + index + " must be between 0 and " + numPrograms + "."); 
+      throw new IndexOutOfBoundsException("The program index must be in [0, " + numPrograms + "): " + Integer.toString(index)); 
     }
     return getProgramName(index, vstPluginPtr);
   }
@@ -575,7 +575,7 @@ public class JVstHost20 extends JVstHost2 {
   @Override
   public synchronized VstPinProperties getInputProperties(int index) {
     if (index < 0 || index >= numInputs) {
-      throw new IndexOutOfBoundsException();
+      throw new IndexOutOfBoundsException("The input index must be in [0, " + numInputs + "): " + Integer.toString(index));
     }
     return getPinProperties(index, true, vstPluginPtr);
   }
@@ -583,7 +583,7 @@ public class JVstHost20 extends JVstHost2 {
   @Override
   public synchronized VstPinProperties getOutputProperties(int index) {
     if (index < 0 || index >= numOutputs) {
-      throw new IndexOutOfBoundsException();
+      throw new IndexOutOfBoundsException("The output index must be in [0, " + numOutputs + "): " + Integer.toString(index));
     }
     return getPinProperties(index, false, vstPluginPtr);
   }
@@ -593,6 +593,17 @@ public class JVstHost20 extends JVstHost2 {
    * refers to an output.
    */
   protected static native VstPinProperties getPinProperties(int index, boolean isInput, long pluginPtr);
+  
+  public void setTimeSignature(int nominator, int denominator) {
+    if (nominator <= 0) {
+      throw new IllegalArgumentException("The number of note values per measure must be positive: " + Integer.toString(nominator));
+    }
+    if (denominator <= 0) {
+      throw new IllegalArgumentException("The note value per beat must be positive: " + Integer.toString(denominator));
+    }
+    setTimeSignature(nominator, denominator, vstPluginPtr);
+  }
+  protected static native void setTimeSignature(int nominator, int denominator, long pluginPtr);
   
   /*
    * Native plugin callbacks.

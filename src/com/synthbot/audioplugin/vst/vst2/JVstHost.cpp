@@ -69,6 +69,8 @@ typedef struct hostLocalVars {
   int blockSize;
   double tempo;
   void *nativeEditorWindow;
+  int timeSigNumerator;
+  int timeSigDenominator;
 };
 
 /**
@@ -555,8 +557,8 @@ VstIntPtr VSTCALLBACK HostCallback (AEffect *effect, VstInt32 opcode, VstInt32 i
         vti->flags |= kVstCyclePosValid;
       }
       if (value & kVstTimeSigValid != 0) { // bit 13
-        vti->timeSigNumerator = 4;
-        vti->timeSigDenominator = 4;
+        vti->timeSigNumerator = ((hostLocalVars *) effect->resvd1)->timeSigNumerator;
+        vti->timeSigDenominator = ((hostLocalVars *) effect->resvd1)->timeSigDenominator;
         vti->flags |= kVstTimeSigValid;
       }
       if (value & kVstSmpteValid != 0) { // bit 14
@@ -957,6 +959,8 @@ JNIEXPORT jlong JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost2_loadPlu
   ((hostLocalVars *) ae->resvd1)->blockSize = 0;
   ((hostLocalVars *) ae->resvd1)->tempo = DEFAULT_TEMPO;
   ((hostLocalVars *) ae->resvd1)->nativeEditorWindow = NULL;
+  ((hostLocalVars *) ae->resvd1)->timeSigNumerator = 4;
+  ((hostLocalVars *) ae->resvd1)->timeSigDenominator = 4;
 
   return (jlong) ae;
 }
@@ -1731,6 +1735,16 @@ JNIEXPORT jobject JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_getP
     
   free(vpp);
   return jvstPinProperties;
+}
+
+JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_setTimeSignature
+(JNIEnv *env, jclass jclazz, jint nominator, jint denominator, jlong ae) {
+  
+  AEffect *effect = (AEffect *)ae;
+  if (isHostLocalVarsValid(effect)) {
+    ((hostLocalVars *) effect->resvd1)->timeSigNumerator = nominator;
+    ((hostLocalVars *) effect->resvd1)->timeSigDenominator = denominator;
+  }
 }
 
 JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost23_startProcess
