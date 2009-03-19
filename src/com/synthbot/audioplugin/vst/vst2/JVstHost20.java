@@ -594,16 +594,16 @@ public class JVstHost20 extends JVstHost2 {
    */
   protected static native VstPinProperties getPinProperties(int index, boolean isInput, long pluginPtr);
   
-  public void setTimeSignature(int nominator, int denominator) {
-    if (nominator <= 0) {
-      throw new IllegalArgumentException("The number of note values per measure must be positive: " + Integer.toString(nominator));
+  public void setTimeSignature(int numerator, int denominator) {
+    if (numerator <= 0) {
+      throw new IllegalArgumentException("The number of note values per measure must be positive: " + Integer.toString(numerator));
     }
     if (denominator <= 0) {
       throw new IllegalArgumentException("The note value per beat must be positive: " + Integer.toString(denominator));
     }
-    setTimeSignature(nominator, denominator, vstPluginPtr);
+    setTimeSignature(numerator, denominator, vstPluginPtr);
   }
-  protected static native void setTimeSignature(int nominator, int denominator, long pluginPtr);
+  protected static native void setTimeSignature(int numerator, int denominator, long pluginPtr);
   
   /*
    * Native plugin callbacks.

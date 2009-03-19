@@ -39,7 +39,6 @@
 #define JNI_VERSION JNI_VERSION_1_4
 
 #define PPQ 96.0
-#define DEFAULT_TEMPO 120.0
 #define WINDOWS_EDITOR_CLASSNAME "JVstHost Native Editor"
 
 // GLOBAL VARIABLES
@@ -525,53 +524,57 @@ VstIntPtr VSTCALLBACK HostCallback (AEffect *effect, VstInt32 opcode, VstInt32 i
       VstInt32 flags;					///< @see VstTimeInfoFlags
     */
     // check aeffecx.h!
-    // note that the vti struct must be freed by the host, not the plugin.
     case audioMasterGetTime: {
-      VstTimeInfo *vti = ((hostLocalVars *) effect->resvd1)->vti;
-      vti->samplePos = 0.0;
-      vti->sampleRate = ((hostLocalVars *) effect->resvd1)->sampleRate;
-      vti->flags = 0;
-      if (value & kVstNanosValid != 0) { // bit 8
-        // Live returns this...
-        //vti->nanoSeconds = 0.0;
-        //vti->flags |= kVstNanosValid;
+      if (isHostLocalVarsValid(effect)) {
+        hostLocalVars *hostVars = ((hostLocalVars *) effect->resvd1);
+        VstTimeInfo *vti = hostVars->vti;
+        vti->samplePos = 0.0;
+        vti->sampleRate = hostVars->sampleRate;
+        vti->flags = 0;
+        if (value & kVstNanosValid != 0) { // bit 8
+          // Live returns this...
+          //vti->nanoSeconds = 0.0;
+          //vti->flags |= kVstNanosValid;
+        }
+        if (value & kVstPpqPosValid != 0) { // bit 9
+          //vti->ppqPos = (vti->samplePos/vti->sampleRate) * (TEMPO_BPM/60.0);
+          vti->ppqPos = 0.0;
+          vti->flags |= kVstPpqPosValid;
+        }
+        if (value & kVstTempoValid != 0) { // bit 10
+          vti->tempo = hostVars->tempo;
+          vti->flags |= kVstTempoValid;
+        }
+        if (value & kVstBarsValid != 0) { // bit 11
+          // Live returns this...
+          vti->barStartPos = 0.0;
+          vti->flags |= kVstBarsValid;
+        }
+        if (value & kVstCyclePosValid != 0) { // bit 12
+          // Live returns this...
+          vti->cycleStartPos = 0.0;
+          vti->cycleEndPos = 0.0;
+          vti->flags |= kVstCyclePosValid;
+        }
+        if (value & kVstTimeSigValid != 0) { // bit 13
+          vti->timeSigNumerator = hostVars->timeSigNumerator;
+          vti->timeSigDenominator = hostVars->timeSigDenominator;
+          vti->flags |= kVstTimeSigValid;
+        }
+        if (value & kVstSmpteValid != 0) { // bit 14
+          //vti->smpteFrameRate = kVstSmpte24fps; // return something!???
+          //vti->flags |= kVstSmpteValid;
+        }
+        if (value & kVstClockValid != 0) { // bit 15
+          // Live returns this...
+          //vti->samplesToNextClock = 0;
+          //vti->flags |= kVstClockValid;
+        }
+        
+        return (VstIntPtr) vti;
+      } else {
+        return 0;
       }
-      if (value & kVstPpqPosValid != 0) { // bit 9
-        //vti->ppqPos = (vti->samplePos/vti->sampleRate) * (TEMPO_BPM/60.0);
-        vti->ppqPos = 0.0;
-        vti->flags |= kVstPpqPosValid;
-      }
-      if (value & kVstTempoValid != 0) { // bit 10
-        vti->tempo = ((hostLocalVars *) effect->resvd1)->tempo;
-        vti->flags |= kVstTempoValid;
-      }
-      if (value & kVstBarsValid != 0) { // bit 11
-        // Live returns this...
-        vti->barStartPos = 0.0;
-        vti->flags |= kVstBarsValid;
-      }
-      if (value & kVstCyclePosValid != 0) { // bit 12
-        // Live returns this...
-        vti->cycleStartPos = 0.0;
-        vti->cycleEndPos = 0.0;
-        vti->flags |= kVstCyclePosValid;
-      }
-      if (value & kVstTimeSigValid != 0) { // bit 13
-        vti->timeSigNumerator = ((hostLocalVars *) effect->resvd1)->timeSigNumerator;
-        vti->timeSigDenominator = ((hostLocalVars *) effect->resvd1)->timeSigDenominator;
-        vti->flags |= kVstTimeSigValid;
-      }
-      if (value & kVstSmpteValid != 0) { // bit 14
-        //vti->smpteFrameRate = kVstSmpte24fps; // return something!???
-        //vti->flags |= kVstSmpteValid;
-      }
-      if (value & kVstClockValid != 0) { // bit 15
-        // Live returns this...
-        //vti->samplesToNextClock = 0;
-        //vti->flags |= kVstClockValid;
-      }
-      
-      return (VstIntPtr) vti;
     }
     
     // [ptr]: pointer to #VstEvents
@@ -957,7 +960,7 @@ JNIEXPORT jlong JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost2_loadPlu
   ((hostLocalVars *) ae->resvd1)->libPtr = libptr;
   ((hostLocalVars *) ae->resvd1)->sampleRate = 0.0;
   ((hostLocalVars *) ae->resvd1)->blockSize = 0;
-  ((hostLocalVars *) ae->resvd1)->tempo = DEFAULT_TEMPO;
+  ((hostLocalVars *) ae->resvd1)->tempo = 120.0; // 120 BPM
   ((hostLocalVars *) ae->resvd1)->nativeEditorWindow = NULL;
   ((hostLocalVars *) ae->resvd1)->timeSigNumerator = 4;
   ((hostLocalVars *) ae->resvd1)->timeSigDenominator = 4;
@@ -1738,11 +1741,11 @@ JNIEXPORT jobject JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_getP
 }
 
 JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_setTimeSignature
-(JNIEnv *env, jclass jclazz, jint nominator, jint denominator, jlong ae) {
+(JNIEnv *env, jclass jclazz, jint numerator, jint denominator, jlong ae) {
   
   AEffect *effect = (AEffect *)ae;
   if (isHostLocalVarsValid(effect)) {
-    ((hostLocalVars *) effect->resvd1)->timeSigNumerator = nominator;
+    ((hostLocalVars *) effect->resvd1)->timeSigNumerator = numerator;
     ((hostLocalVars *) effect->resvd1)->timeSigDenominator = denominator;
   }
 }

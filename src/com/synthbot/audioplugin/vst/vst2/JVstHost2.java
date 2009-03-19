@@ -514,11 +514,11 @@ public abstract class JVstHost2 {
   
   /**
    * Set the time signature. The default is 4/4.
-   * @param nominator  The number of note values in one measure
+   * @param numerator  The number of note values in one measure
    * @param denominator  The note value representing one beat
    * @throws IllegalArgumentException  Thrown if either argument is not positive.
    */
-  public abstract void setTimeSignature(int nominator, int denominator);
+  public abstract void setTimeSignature(int numerator, int denominator);
   
   /*
    * Callbacks from the native plugin.
