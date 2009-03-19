@@ -335,6 +335,14 @@ JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_setBypa
 JNIEXPORT jobject JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_getPinProperties
   (JNIEnv *, jclass, jint, jboolean, jlong);
 
+/*
+ * Class:     com_synthbot_audioplugin_vst_vst2_JVstHost20
+ * Method:    setTimeSignature
+ * Signature: (IIJ)V
+ */
+JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_setTimeSignature
+  (JNIEnv *, jclass, jint, jint, jlong);
+
 #ifdef __cplusplus
 }
 #endif
