@@ -14,6 +14,6 @@ gcc -framework CoreFoundation -framework Carbon -o libjvsthost2.jnilib -fPIC -dy
 JVstHost.cpp \
 -lc -lstdc++ -lm
 
-cp libjvsthost2.jnilib /Library/Java/Extensions/libjvsthost2.jnilib
+cp libjvsthost2.jnilib /Library/Java/Extensions/
 cp libjvsthost2.jnilib ../../../../../../
 ls -l ./libjvsthost2.jnilib
