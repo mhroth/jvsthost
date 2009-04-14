@@ -212,7 +212,7 @@ public class JVstHost20 extends JVstHost2 {
       throw new IndexOutOfBoundsException("Parameter index, " + index + ", must be between 0 and " + numParameters);
     }
     if (value < 0f || value > 1f) {
-      throw new IllegalArgumentException("Parameter values are bounded to [0, 1]: " + value);
+      System.err.println("Parameter values should be constrained to within [0,1]: " + Float.toString(value));
     }
     setParameter(index, value, vstPluginPtr);
   }

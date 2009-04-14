@@ -207,10 +207,11 @@ public abstract class JVstHost2 {
   public abstract float getParameter(int index);
   
   /**
-   * Set a parameter to a value.
+   * Set a parameter to a value. Note that parameter values should be constrained to within [0,1]. 
+   * However, some plugins are incorrectly coded and encode discrete parameters with integral values
+   * outside of this range. A warning message is printed in this case.
    * @param index  Parameter index.
    * @param value  Parameter value.
-   * @throws IllegalArgumentException  Thrown if the parameter value is not between 0f and 1f.
    * @throws IndexOutOfBoundsException  Thrown if the parameter index is < 0 or >= numParameters.
    */
   public abstract void setParameter(int index, float value);
