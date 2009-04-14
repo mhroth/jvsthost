@@ -656,12 +656,20 @@ VstIntPtr VSTCALLBACK HostCallback (AEffect *effect, VstInt32 opcode, VstInt32 i
     
     // [return value]: current sample rate
     case audioMasterGetSampleRate: {
-      return (VstIntPtr) ((hostLocalVars *) effect->resvd1)->sampleRate;
+      if (isHostLocalVarsValid(effect)) {
+        return (VstIntPtr) ((hostLocalVars *) effect->resvd1)->sampleRate;    
+      } else {
+        return (VstIntPtr) 44100.0; // default
+      }
     }
     
     // Returns block size from Host
     case audioMasterGetBlockSize: {
-      return (VstIntPtr) ((hostLocalVars *) effect->resvd1)->blockSize;
+      if (isHostLocalVarsValid(effect)) {
+        return (VstIntPtr) ((hostLocalVars *) effect->resvd1)->blockSize;    
+      } else {
+        return (VstIntPtr) 512; // default;
+      }
     }
     
     // [return value]: input latency in audio samples
