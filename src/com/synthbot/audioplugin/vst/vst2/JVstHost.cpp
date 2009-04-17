@@ -1440,8 +1440,12 @@ JNIEXPORT jstring JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_getE
 JNIEXPORT jstring JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_getParameterName
   (JNIEnv *env, jclass jclazz, jint index, jlong ae) {
 
+  /*
+   * The VST standard defines these strings to have a maximum length of kVstMaxParamStrLen (8) characters.
+   * But some VSTs flagrantly exceed these bounds. A much larger limit is used.
+   */
   AEffect *effect = (AEffect *)ae;
-  char *name = (char *)malloc(sizeof(char) * kVstMaxParamStrLen);
+  char *name = (char *)malloc(sizeof(char) * 64); // kVstMaxParamStrLen
   effect->dispatcher (effect, effGetParamName, index, 0, name, 0);
   jstring jname = env->NewStringUTF(name);
   free(name);
@@ -1588,8 +1592,12 @@ JNIEXPORT void JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_setProg
 JNIEXPORT jstring JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_getParameterDisplay
   (JNIEnv *env, jclass jclazz, jint index, jlong ae) {
 
+  /*
+   * The VST standard defines these strings to have a maximum length of kVstMaxParamStrLen (8) characters.
+   * But some VSTs flagrantly exceed these bounds. A much larger limit is used.
+   */
   AEffect *effect = (AEffect *)ae;
-  char *name = (char *)malloc(sizeof(char) * kVstMaxParamStrLen);
+  char *name = (char *)malloc(sizeof(char) * 64); // kVstMaxParamStrLen
   effect->dispatcher (effect, effGetParamDisplay, index, 0, name, 0);
   jstring jname = env->NewStringUTF(name);
   free(name);
@@ -1599,8 +1607,13 @@ JNIEXPORT jstring JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_getP
 JNIEXPORT jstring JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_getParameterLabel
   (JNIEnv *env, jclass jclazz, jint index, jlong ae) {
 
+  
+  /*
+   * The VST standard defines these strings to have a maximum length of kVstMaxParamStrLen (8) characters.
+   * But some VSTs flagrantly exceed these bounds. A much larger limit is used.
+   */
   AEffect *effect = (AEffect *)ae;
-  char *name = (char *)malloc(sizeof(char) * kVstMaxParamStrLen);
+  char *name = (char *)malloc(sizeof(char) * 64); // kVstMaxParamStrLen
   effect->dispatcher (effect, effGetParamLabel, index, 0, name, 0);
   jstring jname = env->NewStringUTF(name);
   free(name);
