@@ -1726,7 +1726,8 @@ JNIEXPORT jobject JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost20_getP
   (JNIEnv *env, jclass clazz, jint index, jboolean isInput, jlong ae) {
   
   AEffect *effect = (AEffect *) ae;
-  VstPinProperties *vpp = (VstPinProperties *) malloc(sizeof(VstPinProperties));
+  //VstPinProperties *vpp = (VstPinProperties *) malloc(sizeof(VstPinProperties));
+  VstPinProperties *vpp = (VstPinProperties *) calloc(1, sizeof(VstPinProperties)); // initialise the memory as strings are sometimes improperly terminated
   jclass classVstPinProperties = env->FindClass("com/synthbot/audioplugin/vst/vst2/VstPinProperties");
   jobject jvstPinProperties;
   int isSupported = 0;
