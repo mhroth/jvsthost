@@ -1172,7 +1172,7 @@ VstEvents *setMidiEvents(JNIEnv *env, jobjectArray midiMessages, AEffect* effect
   jobject midiMessage;
   VstEvents *vstes;
   if (numMessages <= 2) {
-    vstes = (VstEvents *) malloc(sizeof(VstEvent));
+    vstes = (VstEvents *) malloc(sizeof(VstEvents));
   } else {
     vstes = (VstEvents *) malloc(sizeof(VstEvents) + (numMessages-2)*sizeof(VstEvent *));
   }
