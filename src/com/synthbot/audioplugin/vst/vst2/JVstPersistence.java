@@ -141,7 +141,7 @@ public class JVstPersistence {
    * This method is not yet implemented.
    */
   @Deprecated
-  public static void loadBank(JVstHost2 vst, File file) {
+  public static void loadBank(JVstHost2 vst, File file) throws IOException {
     throw new IllegalStateException("JVstPersistence.loadBank(...) is not yet implemented.");
   }
   
