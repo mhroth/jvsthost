@@ -76,6 +76,8 @@ public class JVstPersistence {
       throw new DataFormatException("File does not contain required Chunk Magic, \"" + CHUNK_MAGIC + "\", flag.");
     }
     
+    // fileLength is read an assigned to a variable for debugging purposes only
+    @SuppressWarnings("unused")
     int fileLength = fxp.readInt();
     
     fxp.read(fourBytes);
