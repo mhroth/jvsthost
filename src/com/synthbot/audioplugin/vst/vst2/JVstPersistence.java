@@ -76,6 +76,8 @@ public class JVstPersistence {
       throw new DataFormatException("File does not contain required Chunk Magic, \"" + CHUNK_MAGIC + "\", flag.");
     }
     
+    // fileLength is read an assigned to a variable for debugging purposes only
+    @SuppressWarnings("unused")
     int fileLength = fxp.readInt();
     
     fxp.read(fourBytes);
@@ -141,8 +143,8 @@ public class JVstPersistence {
    * This method is not yet implemented.
    */
   @Deprecated
-  public static boolean loadBank(JVstHost2 vst, File file) {
-    return false;
+  public static void loadBank(JVstHost2 vst, File file) throws IOException {
+    throw new IllegalStateException("JVstPersistence.loadBank(...) is not yet implemented.");
   }
   
   /**
@@ -235,11 +237,75 @@ public class JVstPersistence {
   }
   
   /**
-   * This method is not yet implemented.
+   * Saves all programs in the bank of the given plugin to file.
+   * @param vst  The plugin to load the data into.
+   * @param file  The file to save to.
+   * @throws FileNotFoundException  Thrown if the file is not a file (perhaps it is a directory).
+   * @throws IOException  Thrown if there is a problem with opening or writing to the file.
+   * @throws NullPointerException  Thrown if the given plugin or file are <code>null</code>.
    */
-  @Deprecated
-  public static boolean saveBank(JVstHost2 vst, File file) {
-    return false;
+  public static void saveBank(JVstHost2 vst, File file) throws IOException {
+    if (vst == null) {
+      throw new NullPointerException("The given JVstHost2 object may not be null.");
+    }
+    if (file == null) {
+      throw new NullPointerException("The given File object may not be null.");
+    }
+    if (file.isDirectory()) {
+      throw new FileNotFoundException("The given file, " + file.toString() + ", is a directory. It should be a file.");
+    }
+    
+    DataOutputStream fxpOut = new DataOutputStream(new FileOutputStream(file));
+
+    fxpOut.writeBytes(CHUNK_MAGIC);
+    
+    int chunkDataLength = 0;
+    byte[] chunkData = null;
+    if (vst.acceptsProgramsAsChunks()) {
+      chunkData = vst.getBankChunk();
+      chunkDataLength = chunkData.length;
+    } else {
+      chunkDataLength = 4 * vst.numParameters() * vst.numPrograms();
+    }
+    
+    // length of file - 8
+    fxpOut.writeInt((vst.acceptsProgramsAsChunks() ? 160 : 156) +
+        chunkDataLength - 8);
+    
+    // opaque or regular chunks
+    fxpOut.writeBytes(vst.acceptsProgramsAsChunks() ? OPAQUE_BANK_MAGIC : REGULAR_BANK_MAGIC);
+    
+    // format version
+    fxpOut.writeInt(2); // includes VST2.4 extensions
+    
+    // plugin unique id
+    fxpOut.writeBytes(vst.getUniqueId());
+    
+    // plugin version
+    fxpOut.writeInt(vst.getPluginVersion());
+    
+    // numPrograms
+    fxpOut.writeInt(vst.numPrograms());
+    
+    // current program
+    fxpOut.writeInt(0);
+    
+    // reserved (zero)
+    fxpOut.write(new byte[124]);
+    
+    if (vst.acceptsProgramsAsChunks()) {
+      fxpOut.writeInt(chunkDataLength);
+      fxpOut.write(chunkData);
+    } else {
+      for (int i = 0; i < vst.numPrograms(); i++) {
+        vst.setProgram(i);
+        for (int j = 0; j < vst.numParameters(); j++) {
+          fxpOut.writeFloat(vst.getParameter(j));
+        }
+      }
+    }
+    
+    fxpOut.close();
   }
   
   /**

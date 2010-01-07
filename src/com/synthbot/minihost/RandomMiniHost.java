@@ -21,16 +21,16 @@
 
 package com.synthbot.minihost;
 
+import com.synthbot.audioio.vst.JVstAudioThread;
+import com.synthbot.audioplugin.vst.JVstLoadException;
+import com.synthbot.audioplugin.vst.vst2.AbstractJVstHostListener;
+import com.synthbot.audioplugin.vst.vst2.JVstHost2;
+
 import java.io.File;
 import java.io.FileNotFoundException;
 
 import javax.sound.midi.InvalidMidiDataException;
 import javax.sound.midi.ShortMessage;
-
-import com.synthbot.audioio.vst.JVstAudioThread;
-import com.synthbot.audioplugin.vst.JVstLoadException;
-import com.synthbot.audioplugin.vst.vst2.AbstractJVstHostListener;
-import com.synthbot.audioplugin.vst.vst2.JVstHost2;
 
 
 /**

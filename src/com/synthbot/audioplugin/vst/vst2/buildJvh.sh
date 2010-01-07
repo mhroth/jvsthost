@@ -2,7 +2,7 @@ export LD_LIBRARY_PATH=.
 
 # -O3 optimise!
 # -g3 -ggdb3 debug!
-gcc -framework CoreFoundation -framework Carbon -o libjvsthost2.jnilib -fPIC -dynamiclib -O3  \
+gcc -framework CoreFoundation -framework Carbon -o libjvsthost2.jnilib -dynamiclib -O3 \
 -I./ \
 -I./vst2.x \
 -I/Developer/SDKs/MacOSX10.5.sdk/System/Library/Frameworks/JavaVM.framework/Versions/1.5.0/Headers \

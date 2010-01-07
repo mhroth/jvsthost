@@ -21,9 +21,9 @@
 
 package com.synthbot.audioplugin.vst.vst2;
 
-import java.io.File;
-
 import com.synthbot.audioplugin.vst.VstVersion;
+
+import java.io.File;
 
 public class JVstHost23 extends JVstHost22 {
 
