@@ -830,9 +830,15 @@ JNIEXPORT jlong JNICALL Java_com_synthbot_audioplugin_vst_vst2_JVstHost2_loadPlu
     }
     libptr = LoadLibrary (path);
     if (libptr == NULL) {
+      DWORD errorCode = GetLastError(); // get error code
+      // get string representation of error code
+      LPTSTR errorString = NULL;
+      FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM, 
+          NULL, errorCode, NULL, (LPTSTR) &errorString, 0, NULL);
       env->ThrowNew(
           env->FindClass("com/synthbot/audioplugin/vst/JVstLoadException"), 
-          "The native VST library could not be loaded.");
+          errorString); // "The native VST library could not be loaded."
+      LocalFree(errorString); // free the error string
       return 0;
     }
     env->ReleaseStringUTFChars(pluginPath, path);
