@@ -42,6 +42,12 @@ public class JVstPersistence {
   private static final String OPAQUE_PRESET_MAGIC = "FPCh";
   private static final String REGULAR_BANK_MAGIC = "FxBk";
   private static final String OPAQUE_BANK_MAGIC = "FBCh";
+  
+  /**
+   * In some VSTPlugins the version number inside the preset/bank files is buggy. Set this
+   * to true to skip the version number checks when loading a preset/bank file.
+   */
+  public static boolean ignorePluginVersion = false;
 
   /**
    * Loads a program preset from file to the current program of the plugin.
@@ -112,7 +118,7 @@ public class JVstPersistence {
     }
     
     int filePluginVersion = fxp.readInt();
-    if (vst.getPluginVersion() < filePluginVersion) {
+    if (!ignorePluginVersion && (vst.getPluginVersion() < filePluginVersion)) {
       fxp.close();
       throw new DataFormatException("This file contains data for a later plugin version " + 
           Integer.toString(filePluginVersion) + ", and the given plugin is only version " + 
@@ -204,7 +210,7 @@ public class JVstPersistence {
     }
     
     int filePluginVersion = fxp.readInt();
-    if (vst.getPluginVersion() < filePluginVersion) {
+    if (!ignorePluginVersion && (vst.getPluginVersion() < filePluginVersion)) {
       fxp.close();
       throw new DataFormatException("This file contains data for a later plugin version " + 
           Integer.toString(filePluginVersion) + ", and the given plugin is only version " + 
