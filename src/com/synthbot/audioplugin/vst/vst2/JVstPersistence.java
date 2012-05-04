@@ -149,6 +149,7 @@ public class JVstPersistence {
    * Loads a preset bank from file to the current bank of the plugin.
    * @param vst  The plugin to load the data into.
    * @param file  The file to read which contains the preset data.
+   * @author Uri Shaked
    */
   public static void loadBank(JVstHost2 vst, File file) throws DataFormatException, IOException {
     if (vst == null) {
