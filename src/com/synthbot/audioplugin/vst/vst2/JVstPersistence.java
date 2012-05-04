@@ -44,7 +44,7 @@ public class JVstPersistence {
   private static final String OPAQUE_BANK_MAGIC = "FBCh";
 
   /**
-   * Loads a program preset frm file to the current program of the plugin.
+   * Loads a program preset from file to the current program of the plugin.
    * @param vst  The plugin to load the data into.
    * @param file  The file to read which contains the program data.
    * @throws DataFormatException  Thrown if there is a problem loading the data in the file to the plugin.
@@ -140,11 +140,98 @@ public class JVstPersistence {
   }
   
   /**
-   * This method is not yet implemented.
+   * Loads a preset bank from file to the current bank of the plugin.
+   * @param vst  The plugin to load the data into.
+   * @param file  The file to read which contains the preset data.
    */
-  @Deprecated
-  public static void loadBank(JVstHost2 vst, File file) throws IOException {
-    throw new IllegalStateException("JVstPersistence.loadBank(...) is not yet implemented.");
+  public static void loadBank(JVstHost2 vst, File file) throws DataFormatException, IOException {
+    if (vst == null) {
+      throw new NullPointerException("The given JVstHost2 object may not be null.");
+    }
+    if (file == null) {
+      throw new NullPointerException("The given File object may not be null.");
+    }
+    if (!file.exists()) {
+      throw new FileNotFoundException("The given file, " + file.toString() + ", cannot be found.");
+    }
+    if (!file.isFile()) {
+      throw new FileNotFoundException("The given file, " + file.toString() + ", is not a file.");
+    }
+    
+    DataInputStream fxp = new DataInputStream(new FileInputStream(file));
+    
+    byte[] fourBytes = new byte[4];
+    
+    fxp.read(fourBytes);
+    if (!CHUNK_MAGIC.equals(new String(fourBytes))) {
+      fxp.close();
+      throw new DataFormatException("File does not contain required Chunk Magic, \"" + CHUNK_MAGIC + "\", flag.");
+    }
+    
+    // fileLength is read an assigned to a variable for debugging purposes only
+    @SuppressWarnings("unused")
+    int fileLength = fxp.readInt();
+    
+    fxp.read(fourBytes);
+    String chunkDataType = new String(fourBytes);
+    boolean isRegularChunk = true;
+    if (REGULAR_BANK_MAGIC.equals(chunkDataType)) {
+      isRegularChunk = true;
+    } else if (OPAQUE_BANK_MAGIC.equals(chunkDataType)) {
+      if (!vst.acceptsProgramsAsChunks()) {
+        fxp.close();
+        throw new DataFormatException("File contains opaque data but plugin claims not to accept programs as chunks.");
+      } else {
+        isRegularChunk = false;
+      }
+    } else {
+      throw new DataFormatException("File reports that is contains neither regular nor opqaue chunks.");
+    }
+    
+    int fileVersion = fxp.readInt();
+    if (fileVersion > 2) {
+      fxp.close();
+      throw new DataFormatException("File version " + Integer.toString(fileVersion) + " is not supported.");
+    }
+    
+    // unique id
+    fxp.read(fourBytes);
+    String uniqueId = new String(fourBytes);
+    if (!vst.getUniqueId().equals(uniqueId)) {
+      fxp.close();
+      throw new DataFormatException("Unique plugin ID in file does not match given plugin. " +
+      		"Is this file really for " + vst.getEffectName() + "?");
+    }
+    
+    int filePluginVersion = fxp.readInt();
+    if (vst.getPluginVersion() < filePluginVersion) {
+      fxp.close();
+      throw new DataFormatException("This file contains data for a later plugin version " + 
+          Integer.toString(filePluginVersion) + ", and the given plugin is only version " + 
+          Integer.toString(vst.getPluginVersion()) + ". Get a newer version of the plugin.");
+    }
+    
+    int numPrograms = fxp.readInt();
+    
+    int currentProgram = fxp.readInt();
+    
+    // reserved (zero)
+    fxp.read(new byte[124]);
+    
+    if (isRegularChunk) {
+      for (int i = currentProgram; i < currentProgram + numPrograms; i++) {
+        vst.setProgram(i);
+        for (int j = 0; j < vst.numParameters(); j++) {
+          vst.setParameter(i, fxp.readFloat());
+        }
+      }
+    } else {
+      byte[] chunkData = new byte[fxp.readInt()];
+      fxp.read(chunkData);
+      vst.setBankChunk(chunkData);
+    }
+        
+    fxp.close();
   }
   
   /**
