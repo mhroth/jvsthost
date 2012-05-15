@@ -74,82 +74,79 @@ public class JVstPersistence {
     
     DataInputStream fxp = new DataInputStream(new FileInputStream(file));
     
-    byte[] fourBytes = new byte[4];
+    try {
+      byte[] fourBytes = new byte[4];
     
-    fxp.read(fourBytes);
-    if (!CHUNK_MAGIC.equals(new String(fourBytes))) {
-      fxp.close();
-      throw new DataFormatException("File does not contain required Chunk Magic, \"" + CHUNK_MAGIC + "\", flag.");
-    }
+      fxp.read(fourBytes);
+      if (!CHUNK_MAGIC.equals(new String(fourBytes))) {
+        throw new DataFormatException("File does not contain required Chunk Magic, \"" + CHUNK_MAGIC + "\", flag.");
+      }
     
-    // fileLength is read an assigned to a variable for debugging purposes only
-    @SuppressWarnings("unused")
-    int fileLength = fxp.readInt();
+      // fileLength is read an assigned to a variable for debugging purposes only
+      @SuppressWarnings("unused")
+      int fileLength = fxp.readInt();
     
-    fxp.read(fourBytes);
-    String chunkDataType = new String(fourBytes);
-    boolean isRegularChunk = true;
-    if (REGULAR_PRESET_MAGIC.equals(chunkDataType)) {
-      isRegularChunk = true;
-    } else if (OPAQUE_PRESET_MAGIC.equals(chunkDataType)) {
-      if (!vst.acceptsProgramsAsChunks()) {
-        fxp.close();
-        throw new DataFormatException("File contains opaque data but plugin claims not to accept programs as chunks.");
+      fxp.read(fourBytes);
+      String chunkDataType = new String(fourBytes);
+      boolean isRegularChunk = true;
+      if (REGULAR_PRESET_MAGIC.equals(chunkDataType)) {
+        isRegularChunk = true;
+      } else if (OPAQUE_PRESET_MAGIC.equals(chunkDataType)) {
+        if (!vst.acceptsProgramsAsChunks()) {
+          throw new DataFormatException("File contains opaque data but plugin claims not to accept programs as chunks.");
+        } else {
+          isRegularChunk = false;
+        }
       } else {
-        isRegularChunk = false;
+        throw new DataFormatException("File reports that is contains neither regular nor opqaue chunks.");
       }
-    } else {
-      throw new DataFormatException("File reports that is contains neither regular nor opqaue chunks.");
-    }
     
-    int fileVersion = fxp.readInt();
-    if (fileVersion > 1) {
-      fxp.close();
-      throw new DataFormatException("File version " + Integer.toString(fileVersion) + " is not supported.");
-    }
-    
-    // unique id
-    fxp.read(fourBytes);
-    String uniqueId = new String(fourBytes);
-    if (!vst.getUniqueId().equals(uniqueId)) {
-      fxp.close();
-      throw new DataFormatException("Unique plugin ID in file does not match given plugin. " +
-      		"Is this file really for " + vst.getEffectName() + "?");
-    }
-    
-    int filePluginVersion = fxp.readInt();
-    if (!ignorePluginVersion && (vst.getPluginVersion() < filePluginVersion)) {
-      fxp.close();
-      throw new DataFormatException("This file contains data for a later plugin version " + 
-          Integer.toString(filePluginVersion) + ", and the given plugin is only version " + 
-          Integer.toString(vst.getPluginVersion()) + ". Get a newer version of the plugin.");
-    }
-    
-    int numParameters = fxp.readInt();
-    
-    byte[] programNameBytes = new byte[28];
-    fxp.read(programNameBytes);
-    String programName = new String(programNameBytes);
-    vst.setProgramName(programName);
-    
-    if (isRegularChunk) {
-      for (int i = 0; i < numParameters; i++) {
-        vst.setParameter(i, fxp.readFloat());
+      int fileVersion = fxp.readInt();
+      if (fileVersion > 1) {
+        throw new DataFormatException("File version " + Integer.toString(fileVersion) + " is not supported.");
       }
-    } else {
-      byte[] chunkData = new byte[fxp.readInt()];
-      fxp.read(chunkData);        
-      vst.setProgramChunk(chunkData);
-    }
     
-    fxp.close();
+      // unique id
+      fxp.read(fourBytes);
+      String uniqueId = new String(fourBytes);
+      if (!vst.getUniqueId().equals(uniqueId)) {
+        throw new DataFormatException("Unique plugin ID in file does not match given plugin. " +
+        		"Is this file really for " + vst.getEffectName() + "?");
+      }
+    
+      int filePluginVersion = fxp.readInt();
+      if (!ignorePluginVersion && (vst.getPluginVersion() < filePluginVersion)) {
+        throw new DataFormatException("This file contains data for a later plugin version " + 
+            Integer.toString(filePluginVersion) + ", and the given plugin is only version " + 
+            Integer.toString(vst.getPluginVersion()) + ". Get a newer version of the plugin.");
+      }
+    
+      int numParameters = fxp.readInt();
+    
+      byte[] programNameBytes = new byte[28];
+      fxp.read(programNameBytes);
+      String programName = new String(programNameBytes);
+      vst.setProgramName(programName);
+    
+      if (isRegularChunk) {
+        for (int i = 0; i < numParameters; i++) {
+          vst.setParameter(i, fxp.readFloat());
+        }
+      } else {
+        byte[] chunkData = new byte[fxp.readInt()];
+        fxp.read(chunkData);        
+        vst.setProgramChunk(chunkData);
+      }
+    } finally {
+      fxp.close();
+    }
   }
   
   /**
    * Loads a preset bank from file to the current bank of the plugin.
    * @param vst  The plugin to load the data into.
    * @param file  The file to read which contains the preset data.
-   * @author Uri Shaked
+   * @author Uri Shaked <uri@urish.org>
    */
   public static void loadBank(JVstHost2 vst, File file) throws DataFormatException, IOException {
     if (vst == null) {
@@ -167,78 +164,75 @@ public class JVstPersistence {
     
     DataInputStream fxp = new DataInputStream(new FileInputStream(file));
     
-    byte[] fourBytes = new byte[4];
+    try {
+      byte[] fourBytes = new byte[4];
     
-    fxp.read(fourBytes);
-    if (!CHUNK_MAGIC.equals(new String(fourBytes))) {
-      fxp.close();
-      throw new DataFormatException("File does not contain required Chunk Magic, \"" + CHUNK_MAGIC + "\", flag.");
-    }
-    
-    // fileLength is read an assigned to a variable for debugging purposes only
-    @SuppressWarnings("unused")
-    int fileLength = fxp.readInt();
-    
-    fxp.read(fourBytes);
-    String chunkDataType = new String(fourBytes);
-    boolean isRegularChunk = true;
-    if (REGULAR_BANK_MAGIC.equals(chunkDataType)) {
-      isRegularChunk = true;
-    } else if (OPAQUE_BANK_MAGIC.equals(chunkDataType)) {
-      if (!vst.acceptsProgramsAsChunks()) {
-        fxp.close();
-        throw new DataFormatException("File contains opaque data but plugin claims not to accept programs as chunks.");
-      } else {
-        isRegularChunk = false;
+      fxp.read(fourBytes);
+      if (!CHUNK_MAGIC.equals(new String(fourBytes))) {
+        throw new DataFormatException("File does not contain required Chunk Magic, \"" + CHUNK_MAGIC + "\", flag.");
       }
-    } else {
-      throw new DataFormatException("File reports that is contains neither regular nor opqaue chunks.");
-    }
     
-    int fileVersion = fxp.readInt();
-    if (fileVersion > 2) {
-      fxp.close();
-      throw new DataFormatException("File version " + Integer.toString(fileVersion) + " is not supported.");
-    }
+      // fileLength is read an assigned to a variable for debugging purposes only
+      @SuppressWarnings("unused")
+      int fileLength = fxp.readInt();
     
-    // unique id
-    fxp.read(fourBytes);
-    String uniqueId = new String(fourBytes);
-    if (!vst.getUniqueId().equals(uniqueId)) {
-      fxp.close();
-      throw new DataFormatException("Unique plugin ID in file does not match given plugin. " +
-      		"Is this file really for " + vst.getEffectName() + "?");
-    }
-    
-    int filePluginVersion = fxp.readInt();
-    if (!ignorePluginVersion && (vst.getPluginVersion() < filePluginVersion)) {
-      fxp.close();
-      throw new DataFormatException("This file contains data for a later plugin version " + 
-          Integer.toString(filePluginVersion) + ", and the given plugin is only version " + 
-          Integer.toString(vst.getPluginVersion()) + ". Get a newer version of the plugin.");
-    }
-    
-    int numPrograms = fxp.readInt();
-    
-    int currentProgram = fxp.readInt();
-    
-    // reserved (zero)
-    fxp.read(new byte[124]);
-    
-    if (isRegularChunk) {
-      for (int i = currentProgram; i < currentProgram + numPrograms; i++) {
-        vst.setProgram(i);
-        for (int j = 0; j < vst.numParameters(); j++) {
-          vst.setParameter(i, fxp.readFloat());
+      fxp.read(fourBytes);
+      String chunkDataType = new String(fourBytes);
+      boolean isRegularChunk = true;
+      if (REGULAR_BANK_MAGIC.equals(chunkDataType)) {
+        isRegularChunk = true;
+      } else if (OPAQUE_BANK_MAGIC.equals(chunkDataType)) {
+        if (!vst.acceptsProgramsAsChunks()) {
+          throw new DataFormatException("File contains opaque data but plugin claims not to accept programs as chunks.");
+        } else {
+          isRegularChunk = false;
         }
+      } else {
+        throw new DataFormatException("File reports that is contains neither regular nor opqaue chunks.");
       }
-    } else {
-      byte[] chunkData = new byte[fxp.readInt()];
-      fxp.read(chunkData);
-      vst.setBankChunk(chunkData);
+    
+      int fileVersion = fxp.readInt();
+      if (fileVersion > 2) {
+        throw new DataFormatException("File version " + Integer.toString(fileVersion) + " is not supported.");
+      }
+    
+      // unique id
+      fxp.read(fourBytes);
+      String uniqueId = new String(fourBytes);
+      if (!vst.getUniqueId().equals(uniqueId)) {
+        throw new DataFormatException("Unique plugin ID in file does not match given plugin. " +
+        		"Is this file really for " + vst.getEffectName() + "?");
+      }
+    
+      int filePluginVersion = fxp.readInt();
+      if (!ignorePluginVersion && (vst.getPluginVersion() < filePluginVersion)) {
+        throw new DataFormatException("This file contains data for a later plugin version " + 
+            Integer.toString(filePluginVersion) + ", and the given plugin is only version " + 
+            Integer.toString(vst.getPluginVersion()) + ". Get a newer version of the plugin.");
+      }
+    
+      int numPrograms = fxp.readInt();
+      
+      int currentProgram = fxp.readInt();
+      
+      // reserved (zero)
+      fxp.read(new byte[124]);
+    
+      if (isRegularChunk) {
+        for (int i = currentProgram; i < currentProgram + numPrograms; i++) {
+          vst.setProgram(i);
+          for (int j = 0; j < vst.numParameters(); j++) {
+            vst.setParameter(i, fxp.readFloat());
+          }
+        }
+      } else {
+        byte[] chunkData = new byte[fxp.readInt()];
+        fxp.read(chunkData);
+        vst.setBankChunk(chunkData);
+      }
+    } finally {
+      fxp.close();
     }
-        
-    fxp.close();
   }
   
   /**
