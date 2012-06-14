@@ -1,6 +1,6 @@
 /*
- *  Copyright 2007 - 2009 Martin Roth (mhroth@gmail.com)
- *                        Matthew Yee-King
+ *  Copyright 2007,2008,2009,2012 Martin Roth (mhroth@gmail.com)
+ *                                Matthew Yee-King
  * 
  *  This file is part of JVstHost.
  *
@@ -144,7 +144,8 @@ public abstract class JVstHost2 {
   }
 
   static {
-    System.loadLibrary("jvsthost2");
+    // load jvsthost2_32.dll or jvsthost2_64.dll depending on the the bit-depth of the JVM
+    System.loadLibrary("jvsthost2_" + System.getProperty("sun.arch.data.model"));
   }
   
   @Override
