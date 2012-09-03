@@ -27,14 +27,14 @@ import com.synthbot.audioplugin.vst.JVstLoadException;
 import com.synthbot.audioplugin.vst.vst2.AbstractJVstHostListener;
 import com.synthbot.audioplugin.vst.vst2.JVstHost2;
 import com.synthbot.minihost.view.JVstMiniHostGui;
-
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.util.logging.Logger;
 
 public class GuiMiniHost extends AbstractJVstHostListener {
 
   private static final float SAMPLE_RATE = 44100f;
-  private static final int BLOCK_SIZE = 4096;
+  private static final int BLOCK_SIZE = 0x1000;
   private static final String AUDIO_THREAD = "Audio Thread";
   
   private JVstHost2 vst;
@@ -51,11 +51,9 @@ public class GuiMiniHost extends AbstractJVstHostListener {
     try {
       vst = JVstHost2.newInstance(vstFile, SAMPLE_RATE, BLOCK_SIZE);
     } catch (FileNotFoundException fnfe) {
-      fnfe.printStackTrace(System.err);
-      System.exit(1);
+      System.exit(0x1);
     } catch (JVstLoadException jvle) {
-      jvle.printStackTrace(System.err);
-      System.exit(1);
+      System.exit(0x1);
     }
     
     // add the host as a listener to receive any callbacks
@@ -87,13 +85,13 @@ public class GuiMiniHost extends AbstractJVstHostListener {
   }
 
   public static void main(String[] args) {
-    if (args == null || args.length < 1) {
-      System.err.println("Usage: java -jar JVstHost.jar <path to vst plugin>");
-      System.exit(0);
+    if (args == null || args.length < 0x1) {
+      System.exit(0x0);
     }
 
     // start the mini host
-    GuiMiniHost host = new GuiMiniHost(new File(args[0]));
+    GuiMiniHost host = new GuiMiniHost(new File(args[0x0]));
   }
+    private static final Logger LOG = Logger.getLogger(GuiMiniHost.class.getName());
 
 }

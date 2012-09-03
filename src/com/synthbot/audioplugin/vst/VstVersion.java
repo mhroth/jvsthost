@@ -22,12 +22,12 @@
 package com.synthbot.audioplugin.vst;
 
 public enum VstVersion {
-  VST20(2), 
-  VST21(2100), 
-  VST22(2200), 
-  VST23(2300), 
-  VST24(2400),
-  UNKNOWN(0);
+  VST20(0x2), 
+  VST21(0x834), 
+  VST22(0x898), 
+  VST23(0x8fc), 
+  VST24(0x960),
+  UNKNOWN(0x0);
   
   private final int vstVersionNumber;
   

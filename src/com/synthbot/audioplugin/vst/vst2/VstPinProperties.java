@@ -21,6 +21,8 @@
 
 package com.synthbot.audioplugin.vst.vst2;
 
+import java.util.logging.Logger;
+
 /**
  * A data class holding information regarding an input or output. The elements of this class are
  * not mutable. Check to see if the data is valid with <code>isValid</code>. If not, then any access
@@ -60,8 +62,8 @@ public class VstPinProperties {
     INDEX = index;
     LABEL = label;
     SHORT_LABEL = shortLabel;
-    IS_ACTIVE = (flags & 0x1) != 0;
-    IS_FIRST_IN_STEREO_PAIR = (flags & 0x2) != 0;
+    IS_ACTIVE = (flags & 1) != 0x0;
+    IS_FIRST_IN_STEREO_PAIR = (flags & 2) != 0x0;
   }
   
   /**
@@ -125,4 +127,5 @@ public class VstPinProperties {
   public boolean isValid() {
     return IS_VALID;
   }
+    private static final Logger LOG = Logger.getLogger(VstPinProperties.class.getName());
 }

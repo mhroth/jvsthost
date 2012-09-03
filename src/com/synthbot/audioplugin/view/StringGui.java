@@ -22,32 +22,21 @@
 package com.synthbot.audioplugin.view;
 
 import com.synthbot.audioplugin.vst.vst2.JVstHost2;
-
 import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.EventQueue;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-
+import java.util.logging.Logger;
 import javax.sound.midi.InvalidMidiDataException;
 import javax.sound.midi.ShortMessage;
-import javax.swing.Box;
-import javax.swing.BoxLayout;
-import javax.swing.ImageIcon;
-import javax.swing.JButton;
-import javax.swing.JComboBox;
-import javax.swing.JFrame;
-import javax.swing.JLabel;
-import javax.swing.JPanel;
-import javax.swing.JScrollBar;
-import javax.swing.JScrollPane;
-import javax.swing.JSlider;
+import javax.swing.*;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 
 public class StringGui extends JFrame {
 
-  private final static long serialVersionUID = 0L;
+  private final static long serialVersionUID = 0x0L;
   
   private final JVstHost2 vst;
 
@@ -63,8 +52,8 @@ public class StringGui extends JFrame {
     this.setDefaultCloseOperation(JFrame.HIDE_ON_CLOSE);
     
     // configure the gui based on this host
-    int colWidth = 240;
-    int colHeight = 25;
+    int colWidth = 0xf0;
+    int colHeight = 0x19;
     
     numParameters = vst.numParameters();
     sliders = new JSlider[numParameters];
@@ -95,13 +84,13 @@ public class StringGui extends JFrame {
     JScrollBar verticalScrollBar = scrollPane.getVerticalScrollBar();
     verticalScrollBar.setUnitIncrement(colHeight);
         
-    for (int i = 0; i < numParameters; i++) {
+    for (int i = 0x0; i < numParameters; i++) {
       // parameter names e.g. 'LFO speed'
       // parameter 'units', e.g. 'seconds', 'Hz'
       JLabel nameLabel = new JLabel(i + ": " + vst.getParameterName(i) + "  (" + vst.getParameterLabel(i) + ")  ", JLabel.RIGHT);
       
-      final JSlider slider = new JSlider(0, 127) {
-        private static final long serialVersionUID = 0L;
+      final JSlider slider = new JSlider(0x0, 0x7f) {
+        private static final long serialVersionUID = 0x0L;
         
         /**
          * Implement custom bounds checking and limiting.
@@ -127,6 +116,7 @@ public class StringGui extends JFrame {
       
       final int index = i;
       changeListeners[i] = new ChangeListener() {
+                @Override
         public void stateChanged(ChangeEvent event) {
           vst.setParameter(index, ((float) slider.getValue()) / 127f);
           displayLabel.setText(vst.getParameterDisplay(index));
@@ -160,49 +150,48 @@ public class StringGui extends JFrame {
     // create the keyboard
     Container keyboard = new Container();
     keyboard.setLayout(new BoxLayout(keyboard, BoxLayout.X_AXIS));
-    keyboard.add(Box.createRigidArea(new Dimension(colWidth, 1)));
-    int keyWidth = 20;
+    keyboard.add(Box.createRigidArea(new Dimension(colWidth, 0x1)));
+    int keyWidth = 0x14;
     // load some icons up
     ImageIcon blackKeyIcon = new ImageIcon("res/black_key.png");
     ImageIcon whiteKeyIcon = new ImageIcon("res/white_key.png");
-    for (int i = 0; i < 12; i++) {
+    for (int i = 0x0; i < 0xc; i++) {
       JButton key;
       final int note = i;
-      if (i == 0 || i == 2 || i == 4 || i == 5 || i == 7 || i == 9 || i == 11) {
+      if (i == 0x0 || i == 0x2 || i == 0x4 || i == 0x5 || i == 0x7 || i == 0x9 || i == 0xb) {
         key = new JButton(whiteKeyIcon);
-        key.setMinimumSize(new Dimension(keyWidth, colHeight * 2));
-        key.setPreferredSize(new Dimension(keyWidth, colHeight * 2));
-        key.setMaximumSize(new Dimension(keyWidth, colHeight * 2));
+        key.setMinimumSize(new Dimension(keyWidth, colHeight * 0x2));
+        key.setPreferredSize(new Dimension(keyWidth, colHeight * 0x2));
+        key.setMaximumSize(new Dimension(keyWidth, colHeight * 0x2));
         
       } else {
         key = new JButton(blackKeyIcon);
-        key.setMinimumSize(new Dimension(keyWidth - 2, colHeight * 2));
-        key.setPreferredSize(new Dimension(keyWidth - 2, colHeight * 2));
-        key.setMaximumSize(new Dimension(keyWidth - 2, colHeight * 2));
+        key.setMinimumSize(new Dimension(keyWidth - 0x2, colHeight * 0x2));
+        key.setPreferredSize(new Dimension(keyWidth - 0x2, colHeight * 0x2));
+        key.setMaximumSize(new Dimension(keyWidth - 0x2, colHeight * 0x2));
       }
       
       key.addActionListener(new ActionListener() {
+                @Override
         public void actionPerformed(ActionEvent event) {
           try {
             ShortMessage smNoteOn = new ShortMessage();
-            smNoteOn.setMessage(ShortMessage.NOTE_ON, 0, 48 + note, 96);
+            smNoteOn.setMessage(ShortMessage.NOTE_ON, 0x0, 0x30 + note, 0x60);
             vst.queueMidiMessage(smNoteOn);
           } catch (InvalidMidiDataException imde) {
-            imde.printStackTrace(System.err);
           }
 
           // spin off a thread to stop the note at a later time
           new Thread(new Runnable() {
+                        @Override
             public void run() {
               try {
-                Thread.sleep(2000);
+                Thread.sleep(   0x7d0);
                 ShortMessage smNoteOff = new ShortMessage();
-                smNoteOff.setMessage(ShortMessage.NOTE_OFF, 0, 48 + note, 96);
+                smNoteOff.setMessage(ShortMessage.NOTE_OFF, 0x0, 0x30 + note, 0x60);
                 vst.queueMidiMessage(smNoteOff);
               } catch (InvalidMidiDataException imde) {
-                imde.printStackTrace(System.err);
               } catch (InterruptedException ie) {
-                ie.printStackTrace(System.err);
               }
             }
           }).start();
@@ -216,16 +205,17 @@ public class StringGui extends JFrame {
     /*
      * Add the program changer.
      */
-    if (vst.numPrograms() > 0) {
+    if (vst.numPrograms() > 0x0) {
       String[] progNames = new String[vst.numPrograms()];
-      for (int i = 0; i < progNames.length; i++) {
+      for (int i = 0x0; i < progNames.length; i++) {
         progNames[i] = vst.getProgramName(i) + ":" + i;
       }
-      vst.setProgram(0);
+      vst.setProgram(0x0);
       
       programComboBox = new JComboBox(progNames);
-      programComboBox.setSelectedIndex(0);
+      programComboBox.setSelectedIndex(0x0);
       programComboBox.addActionListener(new ActionListener() {
+                @Override
         public void actionPerformed(ActionEvent e) {
           int index = programComboBox.getSelectedIndex();
           
@@ -233,7 +223,7 @@ public class StringGui extends JFrame {
           vst.setProgram(index);
           
           // now update the sliders...
-          for (int i = 0; i < numParameters; i++) {
+          for (int i = 0x0; i < numParameters; i++) {
             sliders[i].setValue((int) (vst.getParameter(i) * 127f));
           }
         }
@@ -266,6 +256,7 @@ public class StringGui extends JFrame {
      * we insert the update method into the event queue. 
      */
     EventQueue.invokeLater(new Runnable() {
+            @Override
       public void run() {
         setSliderValueWithoutFiringChangeListener(index, value);
         displayLabels[index].setText(vst.getParameterDisplay(index));
@@ -275,9 +266,11 @@ public class StringGui extends JFrame {
   
   public void updateProgram(final int index) {
     EventQueue.invokeLater(new Runnable() {
+            @Override
       public void run() {
         programComboBox.setSelectedIndex(index);
       }
     });
   }
+    private static final Logger LOG = Logger.getLogger(StringGui.class.getName());
 }

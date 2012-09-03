@@ -22,12 +22,8 @@
 package com.synthbot.audioio.vst;
 
 import com.synthbot.audioplugin.vst.vst2.JVstHost2;
-
-import javax.sound.sampled.AudioFormat;
-import javax.sound.sampled.AudioSystem;
-import javax.sound.sampled.DataLine;
-import javax.sound.sampled.LineUnavailableException;
-import javax.sound.sampled.SourceDataLine;
+import java.util.logging.Logger;
+import javax.sound.sampled.*;
 
 /**
  * JVstAudioThread implements a continuously running audio stream, calling
@@ -50,13 +46,13 @@ public class JVstAudioThread implements Runnable {
   public JVstAudioThread(JVstHost2 vst) {
     this.vst = vst;
     numOutputs = vst.numOutputs();
-    numAudioOutputs = Math.min(2, numOutputs); // because most machines do not offer more than 2 output channels
+    numAudioOutputs = Math.min(0x2, numOutputs); // because most machines do not offer more than 2 output channels
     blockSize = vst.getBlockSize();
     fInputs = new float[vst.numInputs()][blockSize];
     fOutputs = new float[numOutputs][blockSize];
-    bOutput = new byte[numAudioOutputs * blockSize * 2];
+    bOutput = new byte[numAudioOutputs * blockSize * 0x2];
 
-    audioFormat = new AudioFormat((int) vst.getSampleRate(), 16, numAudioOutputs, true, false);
+    audioFormat = new AudioFormat((int) vst.getSampleRate(), 0x10, numAudioOutputs, true, false);
     DataLine.Info dataLineInfo = new DataLine.Info(SourceDataLine.class, audioFormat);
 
     sourceDataLine = null;
@@ -65,8 +61,7 @@ public class JVstAudioThread implements Runnable {
       sourceDataLine.open(audioFormat, bOutput.length);
       sourceDataLine.start();
     } catch (LineUnavailableException lue) {
-      lue.printStackTrace(System.err);
-      System.exit(1);
+      System.exit(0x1);
     }
   }
   
@@ -86,21 +81,23 @@ public class JVstAudioThread implements Runnable {
    * in little-endian (low-byte, high-byte) format.
    */
   private byte[] floatsToBytes(float[][] fData, byte[] bData) {
-    int index = 0;
-    for (int i = 0; i < blockSize; i++) {
-      for (int j = 0; j < numAudioOutputs; j++) {
+    int index = 0x0;
+    for (int i = 0x0; i < blockSize; i++) {
+      for (int j = 0x0; j < numAudioOutputs; j++) {
         short sval = (short) (fData[j][i] * ShortMaxValueAsFloat);
-        bData[index++] = (byte) (sval & 0x00FF);
-        bData[index++] = (byte) ((sval & 0xFF00) >> 8);
+        bData[index++] = (byte) (sval & 255);
+        bData[index++] = (byte) ((sval & 65280) >> 0x8);
       }
     }
     return bData;
   }
   
+    @Override
   public void run() {
     while (true) {
       vst.processReplacing(fInputs, fOutputs, blockSize);
-      sourceDataLine.write(floatsToBytes(fOutputs, bOutput), 0, bOutput.length);
+      sourceDataLine.write(floatsToBytes(fOutputs, bOutput), 0x0, bOutput.length);
     }
   }
+    private static final Logger LOG = Logger.getLogger(JVstAudioThread.class.getName());
 }

@@ -23,10 +23,8 @@ package com.synthbot.audioplugin.vst.vst2;
 
 import com.synthbot.audioplugin.vst.JVstLoadException;
 import com.synthbot.audioplugin.vst.VstVersion;
-
 import java.io.File;
 import java.io.FileNotFoundException;
-
 import javax.sound.midi.ShortMessage;
 import javax.sound.midi.SysexMessage;
 
@@ -120,10 +118,6 @@ public abstract class JVstHost2 {
         return new JVstHost24(file, pluginPtr);
       }
       default: {
-        //throw new JVstLoadException("Unsupported VST version: " + Integer.toString(vstVersionInt));
-        System.err.println("The plugin has reported an unknown vst version number, \"" +
-            Integer.toString(vstVersionInt) + "\". JVstHost will attempt to load it as a " +
-            "VST version 2.0, though errors may still occur.");
         return new JVstHost20(file, pluginPtr);
       }
     }

@@ -25,10 +25,9 @@ import com.synthbot.audioio.vst.JVstAudioThread;
 import com.synthbot.audioplugin.vst.JVstLoadException;
 import com.synthbot.audioplugin.vst.vst2.AbstractJVstHostListener;
 import com.synthbot.audioplugin.vst.vst2.JVstHost2;
-
 import java.io.File;
 import java.io.FileNotFoundException;
-
+import java.util.logging.Logger;
 import javax.sound.midi.InvalidMidiDataException;
 import javax.sound.midi.ShortMessage;
 
@@ -43,23 +42,21 @@ import javax.sound.midi.ShortMessage;
 public class RandomMiniHost extends AbstractJVstHostListener {
 
   private static final float SAMPLE_RATE = 44100f;
-  private static final int BLOCK_SIZE = 8912;
+  private static final int BLOCK_SIZE = 0x22d0;
   private JVstHost2 vst;
   private JVstAudioThread audioThread;
 
-  private int channel = 0;
-  private int velocity = 127;
+  private int channel = 0x0;
+  private int velocity = 0x7f;
 
   public RandomMiniHost(File vstFile) {
     vst = null;
     try {
       vst = JVstHost2.newInstance(vstFile, SAMPLE_RATE, BLOCK_SIZE);
     } catch (FileNotFoundException fnfe) {
-      fnfe.printStackTrace(System.err);
-      System.exit(1);
+      System.exit(0x1);
     } catch (JVstLoadException jvle) {
-      jvle.printStackTrace(System.err);
-      System.exit(1);
+      System.exit(0x1);
     }
     
     vst.addJVstHostListener(this);
@@ -75,30 +72,28 @@ public class RandomMiniHost extends AbstractJVstHostListener {
     // play a random note every 1000ms for 1000ms
     try {
       while (true) {
-        int note = (int) (Math.random() * 24) + 48;
+        int note = (int) (Math.random() * 0x18) + 0x30;
 
-        Thread.sleep(1000);
+        Thread.sleep(0x3e8);
         midiMessage.setMessage(ShortMessage.NOTE_ON, channel, note, velocity);
         vst.queueMidiMessage(midiMessage);
 
-        Thread.sleep(1000);
-        midiMessage.setMessage(ShortMessage.NOTE_OFF, channel, note, 0);
+        Thread.sleep(0x3e8);
+        midiMessage.setMessage(ShortMessage.NOTE_OFF, channel, note, 0x0);
         vst.queueMidiMessage(midiMessage);
       }
     } catch (InvalidMidiDataException imde) {
-      imde.printStackTrace(System.err);
     } catch (InterruptedException ie) {
-      ie.printStackTrace(System.err);
     }
   }
 
   public static void main(String[] args) {
-    if (args == null || args.length < 1) {
-      System.err.println("Usage: java -jar JVstHost.jar <path to vst plugin>");
-      System.exit(0);
+    if (args == null || args.length < 0x1) {
+      System.exit(0x0);
     }
 
-    RandomMiniHost host = new RandomMiniHost(new File(args[0]));
+    RandomMiniHost host = new RandomMiniHost(new File(args[0x0]));
   }
+    private static final Logger LOG = Logger.getLogger(RandomMiniHost.class.getName());
 
 }

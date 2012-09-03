@@ -22,9 +22,8 @@
 package com.synthbot.audioplugin.vst.vst2;
 
 import com.synthbot.audioplugin.vst.VstVersion;
-
 import java.io.File;
-
+import java.util.logging.Logger;
 import javax.sound.midi.MidiMessage;
 
 public class JVstHost24 extends JVstHost23 {
@@ -34,7 +33,7 @@ public class JVstHost24 extends JVstHost23 {
   protected JVstHost24(File pluginFile, long pluginPtr) {
     super(pluginFile, pluginPtr);
 
-    canDoubleReplacing = (canDoubleReplacing(pluginPtr) != 0);
+    canDoubleReplacing = (canDoubleReplacing(pluginPtr) != 0x0);
   }
   
   @Override
@@ -80,11 +79,11 @@ public class JVstHost24 extends JVstHost23 {
         }
       }
     }
-    if (blockSize < 0) {
+    if (blockSize < 0x0) {
       throw new IllegalArgumentException("Block size must be non-negative: " + blockSize + " < 0");
     }
     
-    MidiMessage[] messages = queuedMidiMessages.toArray(new MidiMessage[0]);
+    MidiMessage[] messages = queuedMidiMessages.toArray(new MidiMessage[0x0]);
     queuedMidiMessages.clear();
     
     processDoubleReplacing(messages, inputs, outputs, blockSize, vstPluginPtr);
@@ -110,4 +109,5 @@ public class JVstHost24 extends JVstHost23 {
   public synchronized void process(float[][] inputs, float[][] outputs, int blockSize) {
     throw new IllegalStateException("process() is deprecated and unsupported as of VST version 2.4. Use processReplacing or processDoubleReplacing if it exists.");
   }
+    private static final Logger LOG = Logger.getLogger(JVstHost24.class.getName());
 }

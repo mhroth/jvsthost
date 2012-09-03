@@ -21,15 +21,8 @@
 
 package com.synthbot.audioplugin.vst.vst2;
 
-import java.io.BufferedWriter;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.FileWriter;
-import java.io.IOException;
+import java.io.*;
+import java.util.logging.Logger;
 import java.util.zip.DataFormatException;
 
 /**
@@ -75,7 +68,7 @@ public class JVstPersistence {
     DataInputStream fxp = new DataInputStream(new FileInputStream(file));
     
     try {
-      byte[] fourBytes = new byte[4];
+      byte[] fourBytes = new byte[0x4];
     
       fxp.read(fourBytes);
       if (!CHUNK_MAGIC.equals(new String(fourBytes))) {
@@ -102,7 +95,7 @@ public class JVstPersistence {
       }
     
       int fileVersion = fxp.readInt();
-      if (fileVersion > 1) {
+      if (fileVersion > 0x1) {
         throw new DataFormatException("File version " + Integer.toString(fileVersion) + " is not supported.");
       }
     
@@ -123,13 +116,13 @@ public class JVstPersistence {
     
       int numParameters = fxp.readInt();
     
-      byte[] programNameBytes = new byte[28];
+      byte[] programNameBytes = new byte[0x1c];
       fxp.read(programNameBytes);
       String programName = new String(programNameBytes);
       vst.setProgramName(programName);
     
       if (isRegularChunk) {
-        for (int i = 0; i < numParameters; i++) {
+        for (int i = 0x0; i < numParameters; i++) {
           vst.setParameter(i, fxp.readFloat());
         }
       } else {
@@ -165,7 +158,7 @@ public class JVstPersistence {
     DataInputStream fxp = new DataInputStream(new FileInputStream(file));
     
     try {
-      byte[] fourBytes = new byte[4];
+      byte[] fourBytes = new byte[0x4];
     
       fxp.read(fourBytes);
       if (!CHUNK_MAGIC.equals(new String(fourBytes))) {
@@ -192,7 +185,7 @@ public class JVstPersistence {
       }
     
       int fileVersion = fxp.readInt();
-      if (fileVersion > 2) {
+      if (fileVersion > 0x2) {
         throw new DataFormatException("File version " + Integer.toString(fileVersion) + " is not supported.");
       }
     
@@ -216,12 +209,12 @@ public class JVstPersistence {
       int currentProgram = fxp.readInt();
       
       // reserved (zero)
-      fxp.read(new byte[124]);
+      fxp.read(new byte[0x7c]);
     
       if (isRegularChunk) {
         for (int i = currentProgram; i < currentProgram + numPrograms; i++) {
           vst.setProgram(i);
-          for (int j = 0; j < vst.numParameters(); j++) {
+          for (int j = 0x0; j < vst.numParameters(); j++) {
             vst.setParameter(i, fxp.readFloat());
           }
         }
@@ -258,20 +251,20 @@ public class JVstPersistence {
 
     fxpOut.writeBytes(CHUNK_MAGIC);
     
-    int chunkDataLength = 0;
+    int chunkDataLength = 0x0;
     byte[] chunkData = null;
     if (vst.acceptsProgramsAsChunks()) {
       chunkData = vst.getProgramChunk();
       chunkDataLength = chunkData.length;
     } else {
-      chunkDataLength = 4 * vst.numParameters();
+      chunkDataLength = 0x4 * vst.numParameters();
     }
     
     // length of file - 8
     if (vst.acceptsProgramsAsChunks()) {
-      fxpOut.writeInt(60 + chunkDataLength - 8);        
+      fxpOut.writeInt(0x3c + chunkDataLength - 0x8);        
     } else {
-      fxpOut.writeInt(59 + chunkDataLength - 8);
+      fxpOut.writeInt(0x3b + chunkDataLength - 0x8);
     }
     
     if (vst.acceptsProgramsAsChunks()) {
@@ -281,7 +274,7 @@ public class JVstPersistence {
     }
     
     // format version
-    fxpOut.writeInt(1);
+    fxpOut.writeInt(0x1);
     
     // plugin unique id
     fxpOut.writeBytes(vst.getUniqueId());
@@ -291,17 +284,17 @@ public class JVstPersistence {
     
     // numParams
     if (vst.acceptsProgramsAsChunks()) {
-      fxpOut.writeInt(1);
+      fxpOut.writeInt(0x1);
     } else {
       fxpOut.writeInt(vst.numParameters());
     }
     
     String programName = vst.getProgramName();
-    if (programName.length() > 28) {
-      fxpOut.writeBytes(programName.substring(0, 28));        
+    if (programName.length() > 0x1c) {
+      fxpOut.writeBytes(programName.substring(0x0, 0x1c));        
     }  else {
       fxpOut.writeBytes(programName);
-      fxpOut.write(new byte[28 - programName.length()]);
+      fxpOut.write(new byte[0x1c - programName.length()]);
     }
     
     if (vst.acceptsProgramsAsChunks()) {
@@ -316,7 +309,7 @@ public class JVstPersistence {
       // otherwise the host may save the parameter state as it sees fit
       // In this case, the floats representing the parameters are printed out
       int numParameters = vst.numParameters();
-      for (int i = 0; i < numParameters; i++) {
+      for (int i = 0x0; i < numParameters; i++) {
         fxpOut.writeFloat(vst.getParameter(i));
       }
     }
@@ -347,24 +340,24 @@ public class JVstPersistence {
 
     fxpOut.writeBytes(CHUNK_MAGIC);
     
-    int chunkDataLength = 0;
+    int chunkDataLength = 0x0;
     byte[] chunkData = null;
     if (vst.acceptsProgramsAsChunks()) {
       chunkData = vst.getBankChunk();
       chunkDataLength = chunkData.length;
     } else {
-      chunkDataLength = 4 * vst.numParameters() * vst.numPrograms();
+      chunkDataLength = 0x4 * vst.numParameters() * vst.numPrograms();
     }
     
     // length of file - 8
-    fxpOut.writeInt((vst.acceptsProgramsAsChunks() ? 160 : 156) +
-        chunkDataLength - 8);
+    fxpOut.writeInt((vst.acceptsProgramsAsChunks() ? 0xa0 : 0x9c) +
+        chunkDataLength - 0x8);
     
     // opaque or regular chunks
     fxpOut.writeBytes(vst.acceptsProgramsAsChunks() ? OPAQUE_BANK_MAGIC : REGULAR_BANK_MAGIC);
     
     // format version
-    fxpOut.writeInt(2); // includes VST2.4 extensions
+    fxpOut.writeInt(0x2); // includes VST2.4 extensions
     
     // plugin unique id
     fxpOut.writeBytes(vst.getUniqueId());
@@ -376,18 +369,18 @@ public class JVstPersistence {
     fxpOut.writeInt(vst.numPrograms());
     
     // current program
-    fxpOut.writeInt(0);
+    fxpOut.writeInt(0x0);
     
     // reserved (zero)
-    fxpOut.write(new byte[124]);
+    fxpOut.write(new byte[0x7c]);
     
     if (vst.acceptsProgramsAsChunks()) {
       fxpOut.writeInt(chunkDataLength);
       fxpOut.write(chunkData);
     } else {
-      for (int i = 0; i < vst.numPrograms(); i++) {
+      for (int i = 0x0; i < vst.numPrograms(); i++) {
         vst.setProgram(i);
-        for (int j = 0; j < vst.numParameters(); j++) {
+        for (int j = 0x0; j < vst.numParameters(); j++) {
           fxpOut.writeFloat(vst.getParameter(j));
         }
       }
@@ -421,7 +414,7 @@ public class JVstPersistence {
     sb.append("\n");
     sb.append("===");
     sb.append("\n");
-    for (int i = 0; i < vst.numParameters(); i++) {
+    for (int i = 0x0; i < vst.numParameters(); i++) {
       sb.append(i);
       sb.append(" ");
       sb.append(vst.getParameterName(i)); 
@@ -462,7 +455,7 @@ public class JVstPersistence {
     
     DataInputStream fxp = new DataInputStream(new FileInputStream(file));
     
-    byte[] fourBytes = new byte[4];
+    byte[] fourBytes = new byte[0x4];
     
     fxp.read(fourBytes);
     if (!CHUNK_MAGIC.equals(new String(fourBytes))) {
@@ -495,4 +488,5 @@ public class JVstPersistence {
      
     return new VstFileInfo(uniqueId, filePluginVersion, fileVersion, !isRegularChunk);
   }
+    private static final Logger LOG = Logger.getLogger(JVstPersistence.class.getName());
 }

@@ -21,12 +21,14 @@
 
 package com.synthbot.audioplugin.vst;
 
+import java.util.logging.Logger;
+
 /**
  * This Exception is thrown when a VST cannot be loaded via the native method.
  */
 public class JVstLoadException extends Exception {
 
-  static final long serialVersionUID = 0L;
+  static final long serialVersionUID = 0x0L;
   
   public JVstLoadException(Throwable cause) {
     super(cause);
@@ -35,5 +37,6 @@ public class JVstLoadException extends Exception {
   public JVstLoadException(String message) {
     super(message);
   }
+    private static final Logger LOG = Logger.getLogger(JVstLoadException.class.getName());
   
 }

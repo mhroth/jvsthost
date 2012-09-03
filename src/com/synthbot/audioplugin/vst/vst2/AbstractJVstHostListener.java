@@ -25,22 +25,27 @@ import javax.sound.midi.ShortMessage;
 
 public abstract class AbstractJVstHostListener implements JVstHostListener {
 
+    @Override
   public void onAudioMasterAutomate(JVstHost2 vst, int index, float value) {
     // do nothing
   }
 
+    @Override
   public void onAudioMasterIoChanged(JVstHost2 vst, int numInputs, int numOutputs, int initalDelay, int numParameters) {
     // do nothing
   }
 
+    @Override
   public void onAudioMasterProcessMidiEvents(JVstHost2 vst, ShortMessage message) {
     // do nothing
   }
   
+    @Override
   public void onAudioMasterBeginEdit(JVstHost2 vst, int index) {
     // do nothing
   }
   
+    @Override
   public void onAudioMasterEndEdit(JVstHost2 vst, int index) {
     // do nothing
   }
