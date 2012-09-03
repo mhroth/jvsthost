@@ -21,6 +21,7 @@
 
 package com.synthbot.minihost.view;
 
+import java.util.logging.Logger;
 import javax.swing.JFrame;
 
 /**
@@ -29,12 +30,14 @@ import javax.swing.JFrame;
 public class JVstMiniHostGui extends JFrame {
   
   private static final String FRAME_TITLE = "JVstHost Mini Host";
+    private static final long serialVersionUID = 0x1L;
   
   public JVstMiniHostGui() {
     super(FRAME_TITLE);
     setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-    setSize(320, 240);
+    setSize(0x140, 0xf0);
     setVisible(true);
   }
+    private static final Logger LOG = Logger.getLogger(JVstMiniHostGui.class.getName());
 
 }

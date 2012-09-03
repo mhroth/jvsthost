@@ -21,6 +21,8 @@
 
 package com.synthbot.audioplugin.vst.vst2;
 
+import java.util.logging.Logger;
+
 
 public class VstFileInfo {
 
@@ -63,5 +65,6 @@ public class VstFileInfo {
    */
   public boolean isDataOpaque() {
     return IS_OPAQUE;
-  } 
+  }
+    private static final Logger LOG = Logger.getLogger(VstFileInfo.class.getName());
 }

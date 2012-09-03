@@ -22,8 +22,8 @@
 package com.synthbot.audioplugin.vst.vst2;
 
 import com.synthbot.audioplugin.vst.VstVersion;
-
 import java.io.File;
+import java.util.logging.Logger;
 
 public class JVstHost22 extends JVstHost21 {
 
@@ -35,5 +35,6 @@ public class JVstHost22 extends JVstHost21 {
   public VstVersion getVstVersion() {
     return VstVersion.VST22;
   }
+    private static final Logger LOG = Logger.getLogger(JVstHost22.class.getName());
   
 }
